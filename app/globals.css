@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────
+   SenayCreatives design tokens — single source of truth for the look.
+   Changing a value here changes it everywhere. Keep it disciplined:
+   one signature accent (brand), one rare warm highlight (ember), the rest quiet.
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Type — characterful display face + clean body face. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-inter), ui-sans-serif, sans-serif;
+
+  /* Core palette (warm near-black ink on cool paper; not cream). */
+  --color-ink: #15140f; /* primary text / dark surfaces */
+  --color-ink-soft: #45443d; /* secondary text */
+  --color-muted: #6f6e66; /* tertiary / captions */
+  --color-paper: #f4f3ee; /* page background */
+  --color-paper-dim: #ebe9e2; /* raised cards / alt sections */
+  --color-line: #dcd9d0; /* hairline borders */
+
+  /* Signature accent — used deliberately, not everywhere. */
+  --color-brand: #1f4dff; /* electric cobalt */
+  --color-brand-ink: #0a1f8a; /* brand text on light, hover */
+  --color-ember: #ff5630; /* rare warm highlight for the one moment */
+
+  /* Feedback */
+  --color-success: #1f9d55;
+  --color-danger: #d23f3f;
+
+  /* Motion — one orchestrated moment, eased not bounced. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* Visible keyboard focus everywhere — accessibility floor. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-brand);
+    color: var(--color-paper);
+  }
+}
+
+/* Respect reduced-motion globally — the signature moment must degrade gracefully. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

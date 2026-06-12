@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Spark } from "@/components/ui/wordmark";
 import { pricing, services } from "@/content/pricing";
+import { capabilities } from "@/content/capabilities";
 
 // Custom app development is deliberately quote-only — never show a fixed price.
 export function AppDevCard() {
@@ -21,6 +22,16 @@ export function AppDevCard() {
             Scope varies too much for a fixed price — a posted number would either
             scare you off or underprice the work. We scope it together first.
           </p>
+          <ul className="mt-6 flex flex-wrap gap-2">
+            {capabilities.map((c) => (
+              <li
+                key={c}
+                className="rounded-full border border-paper/15 px-3 py-1 text-xs text-paper/70"
+              >
+                {c}
+              </li>
+            ))}
+          </ul>
         </div>
         <div className="lg:justify-self-end">
           <div className="rounded-2xl bg-paper/5 p-6">

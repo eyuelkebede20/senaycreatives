@@ -8,16 +8,25 @@ export function PartnersStrip() {
         <p className="text-center text-xs font-semibold tracking-widest text-muted uppercase">
           Trusted by teams across Ethiopia
         </p>
-        <ul className="mt-8 grid grid-cols-2 items-center gap-x-8 gap-y-6 sm:grid-cols-3 lg:grid-cols-6">
-          {partners.map((partner) => (
-            <li
-              key={partner.name}
-              className="text-center font-display text-base font-semibold text-ink-soft/70"
-              title={partner.placeholder ? "Placeholder partner" : undefined}
-            >
-              {partner.name}
-            </li>
-          ))}
+        <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
+          {partners.map((partner) => {
+            const label = (
+              <span className="font-display text-lg font-semibold text-ink-soft/70 transition-colors hover:text-ink">
+                {partner.name}
+              </span>
+            );
+            return (
+              <li key={partner.name}>
+                {partner.url ? (
+                  <a href={partner.url} target="_blank" rel="noopener noreferrer">
+                    {label}
+                  </a>
+                ) : (
+                  label
+                )}
+              </li>
+            );
+          })}
         </ul>
       </Container>
     </section>

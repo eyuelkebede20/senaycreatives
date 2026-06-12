@@ -1,5 +1,6 @@
 // content/projects.ts — portfolio case studies (problem → solution → result).
-// PLACEHOLDER content. Replace `placeholder: true` entries with real case studies.
+// Real client and capability work. Results are kept qualitative where we don't
+// publish client metrics; refine copy with the client's blessing.
 
 export type Project = {
   slug: string;
@@ -10,50 +11,70 @@ export type Project = {
   problem: string;
   solution: string;
   result: string;
-  /** Stored under /public/projects/… — placeholders may not exist yet. */
-  cover: string;
+  url?: string;
+  /** Optional cover under /public/projects/… — a styled placeholder shows until it exists. */
+  cover?: string;
   tags: string[];
   placeholder?: boolean;
 };
 
 export const projects: Project[] = [
   {
-    slug: "merkato-grocers",
-    title: "Doubling repeat orders for a neighborhood grocer",
-    client: "Merkato Grocers",
-    service: "Full Digitalization",
-    year: 2025,
-    problem: "A busy grocer took every order by phone and lost track of regulars and stock.",
-    solution: "We built an ordering site with Telebirr checkout, a simple inventory view, and SMS confirmations.",
-    result: "Repeat orders doubled in three months and phone chaos dropped sharply.",
-    cover: "/projects/placeholder-1.svg",
-    tags: ["E-commerce", "Telebirr", "Inventory"],
-    placeholder: true,
-  },
-  {
-    slug: "habesha-clinic",
-    title: "Cutting no-shows for a private clinic",
-    client: "Habesha Clinic",
+    slug: "achc",
+    title: "A clear, fast web presence for ACHC",
+    client: "ACHC",
     service: "Business Website",
     year: 2024,
-    problem: "Patients booked by calling a front desk that was often busy, and forgot appointments.",
-    solution: "A bilingual booking site with automated reminders and a clear services directory.",
-    result: "No-shows fell by a third and front-desk calls dropped meaningfully.",
-    cover: "/projects/placeholder-2.svg",
-    tags: ["Booking", "Bilingual", "Healthcare"],
-    placeholder: true,
+    problem: "ACHC needed a credible, easy-to-update online presence that reflected the seriousness of their work.",
+    solution: "We designed and built a fast, accessible website with a structure their team can maintain.",
+    result: "A professional site that loads quickly and represents the organisation with confidence.",
+    url: "https://achc.et",
+    tags: ["Website", "Design", "Accessibility"],
   },
   {
-    slug: "addis-threads",
-    title: "Launching a fashion label online",
-    client: "Addis Threads",
+    slug: "dialogue-ethiopia",
+    title: "A content platform for Dialogue Ethiopia",
+    client: "Dialogue Ethiopia",
+    service: "Business Website",
+    year: 2024,
+    problem: "Dialogue Ethiopia needed to publish and organise their work for a wide audience.",
+    solution: "We built a clean, content-first website that makes their material easy to find and read.",
+    result: "A clear home for their ideas that's straightforward for the team to keep current.",
+    url: "https://dialogueethiopia.org",
+    tags: ["Website", "Content", "Bilingual"],
+  },
+  {
+    slug: "ethionet-agency",
+    title: "A sharp landing experience for EthioNet Agency",
+    client: "EthioNet Agency",
     service: "Landing Page",
     year: 2025,
-    problem: "A new clothing label had a strong look but no way to capture interest before launch.",
-    solution: "A fast, striking one-page site with a waitlist and a clear brand story.",
-    result: "Collected over a thousand signups before the first drop sold out.",
-    cover: "/projects/placeholder-3.svg",
-    tags: ["Launch", "Waitlist", "Brand"],
-    placeholder: true,
+    problem: "EthioNet Agency wanted a striking, conversion-focused presence online.",
+    solution: "We delivered a fast landing site with clear messaging and a strong first impression.",
+    result: "A polished site that communicates the agency's offering at a glance.",
+    url: "https://ethionetagency.com",
+    tags: ["Landing Page", "Conversion", "Brand"],
+  },
+  {
+    slug: "database-management-system",
+    title: "A custom database management system",
+    client: "Private client",
+    service: "App Development",
+    year: 2025,
+    problem: "A growing operation was drowning in spreadsheets with no single source of truth.",
+    solution: "We built a tailored database management system to capture, organise, and report on their data.",
+    result: "One reliable system replacing scattered files, with the reports the team actually needs.",
+    tags: ["Database", "Internal tool", "Custom software"],
+  },
+  {
+    slug: "ai-automation",
+    title: "Custom automation with AI integration",
+    client: "Private client",
+    service: "App Development",
+    year: 2025,
+    problem: "Repetitive manual work was eating hours and introducing errors.",
+    solution: "We designed custom automation with AI integration to handle the repetitive steps end to end.",
+    result: "Hours of manual work removed each week, with fewer mistakes along the way.",
+    tags: ["Automation", "AI integration", "Custom software"],
   },
 ];

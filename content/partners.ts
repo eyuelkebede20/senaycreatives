@@ -1,10 +1,10 @@
-// content/partners.ts — partner/client logos + testimonials. PLACEHOLDER content.
+// content/partners.ts — real partners/clients + testimonials.
 
 export type Partner = {
   name: string;
-  /** Stored under /public/partners/… — placeholders may not exist yet. */
-  logo: string;
   url?: string;
+  /** Optional logo under /public/partners/… — we render the name as text until logos arrive. */
+  logo?: string;
   placeholder?: boolean;
 };
 
@@ -16,25 +16,17 @@ export type Testimonial = {
 };
 
 export const partners: Partner[] = [
-  { name: "Merkato Grocers", logo: "/partners/placeholder-1.svg", placeholder: true },
-  { name: "Habesha Clinic", logo: "/partners/placeholder-2.svg", placeholder: true },
-  { name: "Addis Threads", logo: "/partners/placeholder-3.svg", placeholder: true },
-  { name: "Blue Nile Logistics", logo: "/partners/placeholder-4.svg", placeholder: true },
-  { name: "Sheba Foods", logo: "/partners/placeholder-5.svg", placeholder: true },
-  { name: "Lalibela Tours", logo: "/partners/placeholder-6.svg", placeholder: true },
+  { name: "ACHC", url: "https://achc.et" },
+  { name: "Dialogue Ethiopia", url: "https://dialogueethiopia.org" },
+  { name: "EthioNet Agency", url: "https://ethionetagency.com" },
 ];
 
+// No real testimonials yet — clearly placeholder, not attributed to real clients.
 export const testimonials: Testimonial[] = [
   {
-    quote: "They understood the problem before touching a design. The result paid for itself in months.",
+    quote: "They understood the problem before touching a design, and delivered exactly what we needed.",
     author: "[Client Name]",
-    title: "Owner, Merkato Grocers",
-    placeholder: true,
-  },
-  {
-    quote: "Our site finally looks like the business we actually are. Bookings went up immediately.",
-    author: "[Client Name]",
-    title: "Director, Habesha Clinic",
+    title: "[Role, Company]",
     placeholder: true,
   },
 ];

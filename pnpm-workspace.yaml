@@ -1,3 +1,7 @@
+# Flat, symlink-free node_modules. Required so the Next standalone bundle has no
+# symlinks — those don't survive FTP upload to the cPanel host.
+nodeLinker: hoisted
+
 allowBuilds:
   sharp: true
   unrs-resolver: true

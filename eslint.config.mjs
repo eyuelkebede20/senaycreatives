@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // CommonJS Passenger launcher — require() is intentional here.
+    "app.cjs",
+    // Assembled deploy payload (CI only).
+    "deploy/**",
   ]),
 ]);
 

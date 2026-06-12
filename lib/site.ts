@@ -3,6 +3,10 @@
 export const site = {
   name: "SenayCreatives",
   tagline: "We solve problems through digital means.",
+  description:
+    "SenayCreatives is a digital agency in Addis Ababa — app development, full digitalization, digital marketing, custom automation with AI, and landing pages.",
+  // Canonical production origin. Override at build with NEXT_PUBLIC_SITE_URL.
+  url: "https://senaycreatives.com",
   email: "hello@senaycreatives.com",
   location: "Addis Ababa, Ethiopia",
 
@@ -24,3 +28,6 @@ export const site = {
     { label: "X", href: "https://x.com/" },
   ],
 } as const;
+
+/** Canonical origin, overridable per-environment at build time. */
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? site.url;

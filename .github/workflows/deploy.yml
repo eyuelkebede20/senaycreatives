@@ -1,0 +1,94 @@
+name: Deploy senaycreatives.com
+
+# This site is a Next.js (App Router) app built with `output: "standalone"`.
+# On every push to main we build it, assemble the self-contained standalone
+# bundle (server.js + its traced node_modules + .next/static + public + the
+# Passenger launcher app.cjs), then FTP it to the cPanel Passenger Node app.
+#
+# cPanel Node app settings this expects (set once, in the UI):
+#   Application root:         public_html            (or your FTP_SERVER_DIR)
+#   Application startup file: app.cjs                (NOT server.js directly)
+#   Node.js version:          22.x
+#   Environment variables (read at boot by the app):
+#     NEXT_PUBLIC_SITE_URL=https://senaycreatives.com
+#     DATABASE_URL, SMTP_*, NOTIFY_TO, UPLOAD_DIR  (see .env.example)
+#   Do NOT click "Run NPM Install" — we ship the standalone node_modules.
+#
+# Required GitHub repo secrets (Settings → Environments → SenayCreatives):
+#   FTP_SERVER, FTP_USERNAME, FTP_PASSWORD
+#   Optional: FTP_PORT (21), FTP_PROTOCOL (ftp|ftps), FTP_SERVER_DIR (./public_html/)
+# Optional repo variable: SITE_URL (defaults to https://senaycreatives.com).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # The FTP secrets live in this GitHub Environment; the job must declare it.
+    environment: SenayCreatives
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (standalone)
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ vars.SITE_URL || 'https://senaycreatives.com' }}
+        run: pnpm build
+
+      - name: Assemble deploy payload
+        run: |
+          set -e
+          rm -rf deploy && mkdir -p deploy
+          # Self-contained server + its traced node_modules + hidden .next/server.
+          cp -r .next/standalone/. deploy/
+          # Static assets Next does not copy into the standalone output.
+          mkdir -p deploy/.next/static
+          cp -r .next/static/. deploy/.next/static/
+          # Public assets (logo, etc.).
+          if [ -d public ]; then cp -r public deploy/public; fi
+          # Passenger launcher.
+          cp app.cjs deploy/app.cjs
+          # Restart trigger: changing content forces an FTP re-upload, refreshing
+          # the file's mtime so Passenger restarts and serves the new build.
+          mkdir -p deploy/tmp
+          echo "restart ${GITHUB_SHA} ${GITHUB_RUN_NUMBER}" > deploy/tmp/restart.txt
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT || 21 }}
+          # Prefer ftps if the host supports TLS so credentials aren't plaintext.
+          protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
+          timeout: 120000
+          local-dir: ./deploy/
+          server-dir: ${{ secrets.FTP_SERVER_DIR || './public_html/' }}
+          # NOTE: do NOT exclude node_modules — the standalone bundle needs it.
+          # Protect server-managed files only.
+          exclude: |
+            **/.env
+            **/.git/**
+            **/.htaccess
+            **/.well-known/**

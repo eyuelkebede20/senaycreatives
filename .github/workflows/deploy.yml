@@ -59,15 +59,18 @@ jobs:
       - name: Assemble deploy payload
         run: |
           set -e
-          rm -rf deploy && mkdir -p deploy
+          # The self-contained bundle (incl. its real node_modules) goes in a
+          # SUBFOLDER app/, so it never collides with the CloudLinux-managed
+          # node_modules symlink at the app root (senay/node_modules).
+          rm -rf deploy && mkdir -p deploy/app
           # Self-contained server + its traced node_modules + hidden .next/server.
-          cp -r .next/standalone/. deploy/
+          cp -r .next/standalone/. deploy/app/
           # Static assets Next does not copy into the standalone output.
-          mkdir -p deploy/.next/static
-          cp -r .next/static/. deploy/.next/static/
+          mkdir -p deploy/app/.next/static
+          cp -r .next/static/. deploy/app/.next/static/
           # Public assets (logo, etc.).
-          if [ -d public ]; then cp -r public deploy/public; fi
-          # Passenger launcher.
+          if [ -d public ]; then cp -r public deploy/app/public; fi
+          # Passenger launcher at the app root — boots deploy/app/server.js.
           cp app.cjs deploy/app.cjs
           # Restart trigger: changing content forces an FTP re-upload, refreshing
           # the file's mtime so Passenger restarts and serves the new build.

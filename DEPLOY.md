@@ -68,18 +68,45 @@ terminal):
 pnpm db:migrate
 ```
 
+## On-disk layout in `senay/` (why the `app/` subfolder)
+
+CloudLinux NodeJS Selector **owns `node_modules` at the application root** —
+`senay/node_modules` is a symlink to a virtualenv, and the app root must not
+contain a real folder named `node_modules`. Our standalone bundle ships its own
+real `node_modules`, so we keep the whole bundle in a **subfolder** clear of that
+symlink:
+
+```
+senay/                  ← Application Root (CloudLinux manages senay/node_modules)
+├── app.cjs             ← Application startup file (boots app/server.js)
+├── node_modules        ← CloudLinux's symlink → virtualenv (untouched by us)
+├── app/                ← our self-contained bundle
+│   ├── server.js
+│   ├── node_modules/   ← the REAL deps the app uses (no conflict — different path)
+│   ├── .next/ (incl. static)
+│   └── public/
+└── tmp/restart.txt     ← touch to restart
+```
+
+So `app.cjs` does `require("./app/server.js")` and the app resolves its deps from
+`app/node_modules` — the CloudLinux symlink at `senay/node_modules` is never used
+or overwritten.
+
 ## Caveats / things to verify on first deploy
 
-- **`node_modules` symlink.** CloudLinux's Node Selector sometimes keeps a
-  `node_modules` symlink in the app root. We ship a real `node_modules`; if the
-  app fails to boot with "module not found", remove that symlink (or use a
-  dedicated subfolder as Application Root) and redeploy.
-- **`HOSTNAME`.** `app.cjs` forces `0.0.0.0`; if Passenger assigns a Unix socket
+- **One-time cleanup of a bad earlier deploy.** If a previous deploy wrote files
+  to the `senay/` root (a real `server.js`, `.next`, `node_modules`, etc.), delete
+  them so only `app.cjs`, `app/`, `tmp/`, and CloudLinux's `node_modules` symlink
+  remain. Easiest: in cPanel, empty `senay/`, recreate the Node app (Application
+  root `senay`, startup `app.cjs`) so the `node_modules` symlink is fresh, then
+  redeploy.
+- **`HOSTNAME`.** `app.cjs` forces `0.0.0.0`; if the host assigns a Unix socket
   via `PORT` instead of a numeric port, ask the host or switch to a numeric port.
-- **First deploy is full;** subsequent deploys are delta (the FTP action keeps a
-  state file on the server).
-- **Terminal fallback.** This host provides SSH/terminal — if FTP+Passenger is
-  fiddly, you can `git pull` + `pnpm build` + restart on the server instead.
+- **Restart.** The deploy rewrites `tmp/restart.txt`, but LiteSpeed's Node manager
+  may not auto-restart on it — click **Restart** in cPanel if a deploy doesn't take.
+- **First deploy is full** (~20+ min over FTP); subsequent deploys are delta.
+- **Terminal fallback.** This host provides SSH/terminal — if FTP is fiddly, you
+  can `git pull` + `pnpm build` + copy the bundle into `senay/app/` + restart.
 
 After a deploy, sanity-check: `/`, `/packages`, `/projects/achc`, `/sitemap.xml`,
 `/robots.txt`, and `/opengraph-image`.

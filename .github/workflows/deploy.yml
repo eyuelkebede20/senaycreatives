@@ -1,9 +1,9 @@
 name: Deploy senaycreatives.com
 
 # This site is a Next.js (App Router) app built with `output: "standalone"`.
-# On every push to main we build it, pack the self-contained bundle into ONE
-# tarball, ship it over SSH (seconds, vs ~20 min FTP-ing thousands of files),
-# and extract + restart on the cPanel CloudLinux Node app.
+# On every push to main we build it, assemble the self-contained standalone
+# bundle (server.js + its traced node_modules + .next/static + public + the
+# Passenger launcher app.cjs), then FTP it to the cPanel Passenger Node app.
 #
 # cPanel Node app settings this expects (set once, in the UI):
 #   Application root:         api/senaypageapi   (a folder beside public_html;
@@ -13,13 +13,11 @@ name: Deploy senaycreatives.com
 #   Environment variables (read at boot by the app):
 #     NEXT_PUBLIC_SITE_URL=https://senaycreatives.com
 #     DATABASE_URL, SMTP_*, NOTIFY_TO, UPLOAD_DIR  (see .env.example)
-#   Do NOT click "Run NPM Install" — we ship our own node_modules under app/.
+#   Do NOT click "Run NPM Install" — we ship the standalone node_modules.
 #
-# Required GitHub secrets (Settings → Environments → SenayCreatives):
-#   SSH_HOST          the SSH host (often same as the FTP host)
-#   SSH_USER          cPanel username
-#   SSH_PRIVATE_KEY   private key authorized on the account (see DEPLOY.md)
-#   Optional: SSH_PORT (defaults to 22)
+# Required GitHub repo secrets (Settings → Environments → SenayCreatives):
+#   FTP_SERVER, FTP_USERNAME, FTP_PASSWORD
+#   Optional: FTP_PORT (21), FTP_PROTOCOL (ftp|ftps), FTP_SERVER_DIR (./public_html/)
 # Optional repo variable: SITE_URL (defaults to https://senaycreatives.com).
 
 on:
@@ -34,7 +32,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # The deploy secrets live in this GitHub Environment; the job must declare it.
+    # The FTP secrets live in this GitHub Environment; the job must declare it.
     environment: SenayCreatives
 
     steps:
@@ -74,37 +72,30 @@ jobs:
           if [ -d public ]; then cp -r public deploy/app/public; fi
           # Passenger launcher at the app root — boots deploy/app/server.js.
           cp app.cjs deploy/app.cjs
-          # Restart trigger (Passenger watches tmp/restart.txt).
+          # Restart trigger: changing content forces an FTP re-upload, refreshing
+          # the file's mtime so Passenger restarts and serves the new build.
           mkdir -p deploy/tmp
           echo "restart ${GITHUB_SHA} ${GITHUB_RUN_NUMBER}" > deploy/tmp/restart.txt
 
-      - name: Pack bundle
-        run: tar -C deploy -czf bundle.tgz .
-
-      - name: Configure SSH
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Upload, extract, restart
-        env:
-          PORT: ${{ secrets.SSH_PORT || 22 }}
-          DEST: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
-          APP_ROOT: api/senaypageapi
-        run: |
-          set -e
-          SSH_OPTS="-p $PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new"
-          # One ~15 MB file over the wire instead of thousands of FTP transfers.
-          scp -P "$PORT" -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
-            bundle.tgz "$DEST:$APP_ROOT/bundle.tgz"
-          # Extract server-side. Replace app/ + app.cjs only; never touch the
-          # CloudLinux-managed node_modules symlink at the app root.
-          ssh $SSH_OPTS "$DEST" "set -e; \
-            cd \"\$HOME/$APP_ROOT\"; \
-            rm -rf app app.cjs; \
-            tar -xzf bundle.tgz; \
-            rm -f bundle.tgz; \
-            mkdir -p tmp; date > tmp/restart.txt; \
-            cloudlinux-selector restart --json --interpreter nodejs --app-root \"$APP_ROOT\" >/dev/null 2>&1 || true"
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT || 21 }}
+          # Prefer ftps if the host supports TLS so credentials aren't plaintext.
+          protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
+          timeout: 120000
+          local-dir: ./deploy/
+          # App Root is ~/api/senaypageapi. The FTP account lands INSIDE public_html,
+          # so we go up one level to reach it: ../api/senaypageapi. Override with the
+          # FTP_SERVER_DIR secret if your FTP account lands elsewhere (e.g. ./).
+          server-dir: ${{ secrets.FTP_SERVER_DIR || '../api/senaypageapi/' }}
+          # NOTE: do NOT exclude node_modules — the standalone bundle needs it.
+          # Protect server-managed files only.
+          exclude: |
+            **/.env
+            **/.git/**
+            **/.htaccess
+            **/.well-known/**

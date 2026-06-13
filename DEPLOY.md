@@ -17,7 +17,7 @@ cPanel → **Setup Node.js App** → Create Application:
 | --- | --- |
 | Node.js version | **22.x** |
 | Application mode | Production |
-| Application root | `api/senaypageapi` *(a folder beside `public_html` — cPanel won't run a Node app from the domain docroot; must match `FTP_SERVER_DIR`, default `./api/senaypageapi/`)* |
+| Application root | `api/senaypageapi` *(a folder beside `public_html` — cPanel won't run a Node app from the domain docroot). The FTP account lands inside `public_html`, so the deploy target is `../api/senaypageapi/` (default; override via `FTP_SERVER_DIR`).* |
 | Application URL | your domain |
 | **Application startup file** | **`app.cjs`** |
 

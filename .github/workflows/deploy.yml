@@ -88,10 +88,10 @@ jobs:
           protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
           timeout: 120000
           local-dir: ./deploy/
-          # The Node app's Application Root is ~/api/senaypageapi (NOT public_html —
-          # cPanel won't run a Node app from the domain docroot). Override with the
-          # FTP_SERVER_DIR secret if your FTP account lands somewhere else.
-          server-dir: ${{ secrets.FTP_SERVER_DIR || './api/senaypageapi/' }}
+          # App Root is ~/api/senaypageapi. The FTP account lands INSIDE public_html,
+          # so we go up one level to reach it: ../api/senaypageapi. Override with the
+          # FTP_SERVER_DIR secret if your FTP account lands elsewhere (e.g. ./).
+          server-dir: ${{ secrets.FTP_SERVER_DIR || '../api/senaypageapi/' }}
           # NOTE: do NOT exclude node_modules — the standalone bundle needs it.
           # Protect server-managed files only.
           exclude: |

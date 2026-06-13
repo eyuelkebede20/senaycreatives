@@ -1,11 +1,13 @@
 # Deploying SenayCreatives
 
 This is a **Next.js** app built with `output: "standalone"` and deployed to a
-**cPanel Passenger (CloudLinux Node Selector)** account over **FTP** via GitHub
-Actions (`.github/workflows/deploy.yml`).
+**cPanel (CloudLinux Node Selector)** account **over SSH** via GitHub Actions
+(`.github/workflows/deploy.yml`): we pack the bundle into one tarball, `scp` it,
+and extract + restart on the server. (We switched from FTP because uploading the
+thousands of `node_modules` files file-by-file took ~20 minutes per deploy.)
 
 > Why standalone: it bundles the server and only the `node_modules` it actually
-> needs, so the upload is small and no `npm install` runs on the host.
+> needs, so no `npm install` runs on the host.
 
 ## One-time setup
 
@@ -17,7 +19,7 @@ cPanel → **Setup Node.js App** → Create Application:
 | --- | --- |
 | Node.js version | **22.x** |
 | Application mode | Production |
-| Application root | `api/senaypageapi` *(a folder beside `public_html` — cPanel won't run a Node app from the domain docroot). The FTP account lands inside `public_html`, so the deploy target is `../api/senaypageapi/` (default; override via `FTP_SERVER_DIR`).* |
+| Application root | `api/senaypageapi` *(a folder beside `public_html` — cPanel won't run a Node app from the domain docroot). SSH lands at `$HOME`, so the deploy targets `~/api/senaypageapi`.* |
 | Application URL | your domain |
 | **Application startup file** | **`app.cjs`** |
 
@@ -34,18 +36,22 @@ UPLOAD_DIR           = /home/<user>/uploads      # OUTSIDE public_html
 
 These are read at boot (and at request time) by the app. See `.env.example`.
 
-### 3. Add GitHub secrets
+### 3. Set up an SSH key + GitHub secrets
 
-Repo → **Settings → Environments → New environment → `SenayCreatives`**, then add:
+**Create a key authorized on the account** (easiest via cPanel):
+cPanel → **SSH Access → Manage SSH Keys → Generate a New Key** (ed25519, no
+passphrase) → **Authorize** it → **View/Download** the **private** key.
+(Or `ssh-keygen -t ed25519 -f deploy_key -N ""` locally and append `deploy_key.pub`
+to `~/.ssh/authorized_keys` on the host.)
+
+Then repo → **Settings → Environments → `SenayCreatives`** → add:
 
 | Secret | Required | Notes |
 | --- | --- | --- |
-| `FTP_SERVER` | ✅ | host, e.g. `ftp.senaycreatives.com` |
-| `FTP_USERNAME` | ✅ | cPanel/FTP user |
-| `FTP_PASSWORD` | ✅ | |
-| `FTP_PORT` | optional | default `21` |
-| `FTP_PROTOCOL` | optional | `ftps` if the host supports TLS (recommended) |
-| `FTP_SERVER_DIR` | optional | default `./public_html/`; set if your FTP account already lands inside `public_html` (then use `./`) |
+| `SSH_HOST` | ✅ | SSH host (often the same as the old FTP host, or the server's hostname/IP) |
+| `SSH_USER` | ✅ | cPanel username |
+| `SSH_PRIVATE_KEY` | ✅ | the **private** key contents (full `-----BEGIN…END-----` block) |
+| `SSH_PORT` | optional | default `22` (cPanel sometimes uses a custom port — check SSH Access) |
 
 Optional repo **variable** `SITE_URL` overrides the canonical origin at build.
 
@@ -54,9 +60,11 @@ Optional repo **variable** `SITE_URL` overrides the canonical origin at build.
 - **Automatic:** push to `main`.
 - **Manual:** Actions tab → *Deploy senaycreatives.com* → *Run workflow*.
 
-The workflow builds, assembles `deploy/` (server.js + node_modules + `.next/static`
-+ `public` + `app.cjs` + `tmp/restart.txt`), and FTPs it to the app root. Writing
-a new `tmp/restart.txt` each run nudges Passenger to restart and serve the build.
+The workflow builds, assembles the bundle under `deploy/` (`app.cjs` + `app/` +
+`tmp/`), tars it, `scp`s the single tarball to `~/api/senaypageapi/`, then extracts
+it and restarts the app over SSH (bumping `tmp/restart.txt` and calling
+`cloudlinux-selector restart`). The CloudLinux `node_modules` symlink at the app
+root is never touched — only `app/` and `app.cjs` are replaced.
 
 ## Database migrations
 

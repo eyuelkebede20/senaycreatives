@@ -6,7 +6,8 @@ name: Deploy senaycreatives.com
 # Passenger launcher app.cjs), then FTP it to the cPanel Passenger Node app.
 #
 # cPanel Node app settings this expects (set once, in the UI):
-#   Application root:         public_html            (or your FTP_SERVER_DIR)
+#   Application root:         senay   (a folder beside public_html; cPanel won't
+#                             run a Node app from the domain docroot itself)
 #   Application startup file: app.cjs                (NOT server.js directly)
 #   Node.js version:          22.x
 #   Environment variables (read at boot by the app):
@@ -84,7 +85,10 @@ jobs:
           protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
           timeout: 120000
           local-dir: ./deploy/
-          server-dir: ${{ secrets.FTP_SERVER_DIR || './public_html/' }}
+          # The Node app lives in ~/senay (Application Root), NOT public_html —
+          # cPanel won't run a Node app from the domain docroot. Override with the
+          # FTP_SERVER_DIR secret if your FTP account lands somewhere else.
+          server-dir: ${{ secrets.FTP_SERVER_DIR || './senay/' }}
           # NOTE: do NOT exclude node_modules — the standalone bundle needs it.
           # Protect server-managed files only.
           exclude: |

@@ -17,7 +17,7 @@ cPanel → **Setup Node.js App** → Create Application:
 | --- | --- |
 | Node.js version | **22.x** |
 | Application mode | Production |
-| Application root | `public_html` *(or a subfolder — must match `FTP_SERVER_DIR`)* |
+| Application root | `senay` *(a folder beside `public_html` — cPanel won't run a Node app from the domain docroot; must match `FTP_SERVER_DIR`, default `./senay/`)* |
 | Application URL | your domain |
 | **Application startup file** | **`app.cjs`** |
 

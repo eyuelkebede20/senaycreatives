@@ -3,6 +3,7 @@
 // replacing them: the status enums and timestamps are the seams for that work.
 
 import { pgTable, pgEnum, uuid, text, timestamp } from "drizzle-orm/pg-core";
+import { randomUUID } from "node:crypto";
 
 // ── Enums ──────────────────────────────────────────────────────────────────
 // `service` mirrors content/pricing.ts ServiceKey (+ "other" for quote requests).
@@ -42,7 +43,7 @@ export const applicationStatusEnum = pgEnum("application_status", [
 
 /** "Start a project" client intake form. */
 export const submissions = pgTable("submissions", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
@@ -58,7 +59,7 @@ export const submissions = pgTable("submissions", {
 
 /** Careers application form. CV lives on disk OUTSIDE the deploy dir; we store the path. */
 export const applications = pgTable("applications", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),

@@ -17,7 +17,7 @@ cPanel → **Setup Node.js App** → Create Application:
 | --- | --- |
 | Node.js version | **22.x** |
 | Application mode | Production |
-| Application root | `senay` *(a folder beside `public_html` — cPanel won't run a Node app from the domain docroot; must match `FTP_SERVER_DIR`, default `./senay/`)* |
+| Application root | `api/senaypageapi` *(a folder beside `public_html` — cPanel won't run a Node app from the domain docroot; must match `FTP_SERVER_DIR`, default `./api/senaypageapi/`)* |
 | Application URL | your domain |
 | **Application startup file** | **`app.cjs`** |
 
@@ -68,45 +68,43 @@ terminal):
 pnpm db:migrate
 ```
 
-## On-disk layout in `senay/` (why the `app/` subfolder)
+## On-disk layout in `api/senaypageapi/` (why the `app/` subfolder)
 
-CloudLinux NodeJS Selector **owns `node_modules` at the application root** —
-`senay/node_modules` is a symlink to a virtualenv, and the app root must not
+CloudLinux NodeJS Selector **owns `node_modules` at the application root** — the
+app root's `node_modules` is a symlink to a virtualenv, and the root must not
 contain a real folder named `node_modules`. Our standalone bundle ships its own
 real `node_modules`, so we keep the whole bundle in a **subfolder** clear of that
 symlink:
 
 ```
-senay/                  ← Application Root (CloudLinux manages senay/node_modules)
-├── app.cjs             ← Application startup file (boots app/server.js)
-├── node_modules        ← CloudLinux's symlink → virtualenv (untouched by us)
-├── app/                ← our self-contained bundle
+api/senaypageapi/        ← Application Root (CloudLinux manages its node_modules)
+├── app.cjs              ← Application startup file (boots app/server.js)
+├── node_modules         ← CloudLinux's symlink → virtualenv (untouched by us)
+├── app/                 ← our self-contained bundle
 │   ├── server.js
-│   ├── node_modules/   ← the REAL deps the app uses (no conflict — different path)
+│   ├── node_modules/    ← the REAL deps the app uses (no conflict — different path)
 │   ├── .next/ (incl. static)
 │   └── public/
-└── tmp/restart.txt     ← touch to restart
+└── tmp/restart.txt      ← touch to restart
 ```
 
 So `app.cjs` does `require("./app/server.js")` and the app resolves its deps from
-`app/node_modules` — the CloudLinux symlink at `senay/node_modules` is never used
-or overwritten.
+`app/node_modules` — the CloudLinux symlink at the app root is never used or
+overwritten.
 
 ## Caveats / things to verify on first deploy
 
-- **One-time cleanup of a bad earlier deploy.** If a previous deploy wrote files
-  to the `senay/` root (a real `server.js`, `.next`, `node_modules`, etc.), delete
-  them so only `app.cjs`, `app/`, `tmp/`, and CloudLinux's `node_modules` symlink
-  remain. Easiest: in cPanel, empty `senay/`, recreate the Node app (Application
-  root `senay`, startup `app.cjs`) so the `node_modules` symlink is fresh, then
-  redeploy.
+- **Create the app first.** In cPanel, create the Node app with Application Root
+  `api/senaypageapi` so CloudLinux sets up the root `node_modules` symlink, then
+  deploy into it. (If an earlier deploy left files in another folder like `senay/`,
+  you can delete that folder — it's unused now.)
 - **`HOSTNAME`.** `app.cjs` forces `0.0.0.0`; if the host assigns a Unix socket
   via `PORT` instead of a numeric port, ask the host or switch to a numeric port.
 - **Restart.** The deploy rewrites `tmp/restart.txt`, but LiteSpeed's Node manager
   may not auto-restart on it — click **Restart** in cPanel if a deploy doesn't take.
 - **First deploy is full** (~20+ min over FTP); subsequent deploys are delta.
 - **Terminal fallback.** This host provides SSH/terminal — if FTP is fiddly, you
-  can `git pull` + `pnpm build` + copy the bundle into `senay/app/` + restart.
+  can `git pull` + `pnpm build` + copy the bundle into `api/senaypageapi/app/` + restart.
 
 After a deploy, sanity-check: `/`, `/packages`, `/projects/achc`, `/sitemap.xml`,
 `/robots.txt`, and `/opengraph-image`.

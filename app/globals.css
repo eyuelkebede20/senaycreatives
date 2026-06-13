@@ -62,12 +62,30 @@
   }
 }
 
+/* CSS-only entrance — runs at first paint with no JS, so hero text is never
+   hidden waiting on hydration. Ends visible; reduced-motion snaps it in. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.5s var(--ease-out-expo) both;
+}
+
 /* Respect reduced-motion globally — the signature moment must degrade gracefully. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;

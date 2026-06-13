@@ -37,6 +37,9 @@ yarn-error.log*
 # local CV uploads (dev) — real uploads live outside the deploy dir in prod
 /.uploads/
 
+# assembled standalone deploy payload (CI build artifact)
+/deploy/
+
 # vercel
 .vercel
 

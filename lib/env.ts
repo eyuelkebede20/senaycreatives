@@ -19,8 +19,33 @@ function group<T extends z.ZodRawShape>(shape: T, label: string) {
   };
 }
 
-/** Postgres connection. */
-export const dbEnv = group({ DATABASE_URL: z.url() }, "database");
+/**
+ * Postgres connection. Either a single DATABASE_URL, or discrete PG* fields
+ * (no URL-encoding needed — handy when the password has special characters).
+ */
+const dbSchema = z
+  .object({
+    DATABASE_URL: z.string().min(1).optional(),
+    PGHOST: z.string().min(1).optional(),
+    PGPORT: z.coerce.number().int().positive().default(5432),
+    PGUSER: z.string().min(1).optional(),
+    PGPASSWORD: z.string().optional(),
+    PGDATABASE: z.string().min(1).optional(),
+  })
+  .refine((v) => !!v.DATABASE_URL || (!!v.PGHOST && !!v.PGUSER && !!v.PGDATABASE), {
+    message: "Set DATABASE_URL, or PGHOST + PGUSER + PGDATABASE (+ PGPASSWORD).",
+  });
+
+let _dbEnv: z.infer<typeof dbSchema> | null = null;
+export function dbEnv() {
+  if (_dbEnv) return _dbEnv;
+  const parsed = dbSchema.safeParse(process.env);
+  if (!parsed.success) {
+    throw new Error(`Invalid database environment:\n${z.prettifyError(parsed.error)}`);
+  }
+  _dbEnv = parsed.data;
+  return _dbEnv;
+}
 
 /** SMTP for notification emails. */
 export const smtpEnv = group(

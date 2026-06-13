@@ -1,13 +1,13 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
-import { env } from "@/lib/env";
+import { smtpEnv } from "@/lib/env";
 
 // Lazy transport — created on first send, reused after. No connection at import.
 let _transport: Transporter | null = null;
 
 function transport(): Transporter {
   if (!_transport) {
-    const e = env();
+    const e = smtpEnv();
     _transport = nodemailer.createTransport({
       host: e.SMTP_HOST,
       port: e.SMTP_PORT,
@@ -25,7 +25,7 @@ export async function sendNotification(opts: {
   html?: string;
   replyTo?: string;
 }) {
-  const e = env();
+  const e = smtpEnv();
   await transport().sendMail({
     from: e.SMTP_FROM,
     to: e.NOTIFY_TO,

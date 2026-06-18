@@ -8,6 +8,13 @@
       "when": 1781300470964,
       "tag": "0000_bouncy_junta",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781768740057,
+      "tag": "0001_wild_lenny_balinger",
+      "breakpoints": true
     }
   ]
 }

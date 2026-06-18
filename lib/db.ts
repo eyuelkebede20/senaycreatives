@@ -11,6 +11,9 @@ let _db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 export function db() {
   if (!_db) {
     const e = dbEnv();
+    // `require` encrypts without strict cert verification — right for shared
+    // hosts with self-signed certs. Only set when PGSSL is truthy.
+    const ssl = /^(true|require|1)$/i.test(process.env.PGSSL ?? "") ? ("require" as const) : undefined;
     const opts = { max: 5, prepare: false } as const; // modest pool; no prepared stmts
     // Prefer discrete fields when present — no URL-encoding of special chars.
     const client = e.PGHOST
@@ -20,9 +23,10 @@ export function db() {
           user: e.PGUSER,
           password: e.PGPASSWORD,
           database: e.PGDATABASE,
+          ssl,
           ...opts,
         })
-      : postgres(e.DATABASE_URL as string, opts);
+      : postgres(e.DATABASE_URL as string, { ...opts, ssl });
     _db = drizzle(client, { schema });
   }
   return _db;

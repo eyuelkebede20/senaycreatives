@@ -48,6 +48,14 @@ export const applicationSchema = z.object({
 
 export type ApplicationInput = z.infer<typeof applicationSchema>;
 
+/** Manager backend login. */
+export const loginSchema = z.object({
+  email: z.email("Enter a valid email"),
+  password: z.string().min(1, "Enter your password").max(200),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
 /** Validate an uploaded CV File (use on both client and server). */
 export function validateCv(file: File | null): string | null {
   if (!file) return "Attach your CV";

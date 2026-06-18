@@ -15,9 +15,9 @@ const dbCredentials = process.env.PGHOST
   ? {
       host: process.env.PGHOST,
       port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
-      user: process.env.PGUSER,
-      password: process.env.PGPASSWORD,
-      database: process.env.PGDATABASE,
+      user: process.env.PGUSER ?? "",
+      password: process.env.PGPASSWORD ?? "",
+      database: process.env.PGDATABASE ?? "",
       ssl: /^(true|require|1)$/i.test(process.env.PGSSL ?? "") ? ("require" as const) : undefined,
     }
   : { url: process.env.DATABASE_URL ?? "" };

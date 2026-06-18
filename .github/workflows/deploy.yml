@@ -17,7 +17,7 @@ name: Deploy senaycreatives.com
 #
 # Required GitHub repo secrets (Settings → Environments → SenayCreatives):
 #   FTP_SERVER, FTP_USERNAME, FTP_PASSWORD
-#   Optional: FTP_PORT (21), FTP_PROTOCOL (ftp|ftps), FTP_SERVER_DIR (./public_html/)
+#   Optional: FTP_PORT (21), FTP_PROTOCOL (ftp|ftps), FTP_SERVER_DIR (default ./api/senaypageapi/)
 # Optional repo variable: SITE_URL (defaults to https://senaycreatives.com).
 
 on:
@@ -88,10 +88,11 @@ jobs:
           protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
           timeout: 120000
           local-dir: ./deploy/
-          # App Root is ~/api/senaypageapi. The FTP account lands INSIDE public_html,
-          # so we go up one level to reach it: ../api/senaypageapi. Override with the
-          # FTP_SERVER_DIR secret if your FTP account lands elsewhere (e.g. ./).
-          server-dir: ${{ secrets.FTP_SERVER_DIR || '../api/senaypageapi/' }}
+          # App Root is ~/api/senaypageapi. The FTP account lands at the HOME root
+          # (~/), so the app root is a direct child: ./api/senaypageapi. (If you use
+          # an FTP account scoped INSIDE public_html instead, set the FTP_SERVER_DIR
+          # secret to ../api/senaypageapi/ to climb out of public_html.)
+          server-dir: ${{ secrets.FTP_SERVER_DIR || './api/senaypageapi/' }}
           # NOTE: do NOT exclude node_modules — the standalone bundle needs it.
           # Protect server-managed files only.
           exclude: |

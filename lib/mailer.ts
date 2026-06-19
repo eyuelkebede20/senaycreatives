@@ -18,7 +18,7 @@ function transport(): Transporter {
   return _transport;
 }
 
-/** Send an internal notification email. Throws on failure — callers decide UX. */
+/** Send an internal notification email (to NOTIFY_TO). Throws on failure. */
 export async function sendNotification(opts: {
   subject: string;
   text: string;
@@ -33,5 +33,55 @@ export async function sendNotification(opts: {
     text: opts.text,
     html: opts.html,
     replyTo: opts.replyTo,
+  });
+}
+
+/** Send an email to an arbitrary recipient (e.g. a confirmation). Throws. */
+export async function sendEmail(opts: {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  replyTo?: string;
+}) {
+  const e = smtpEnv();
+  await transport().sendMail({
+    from: e.SMTP_FROM,
+    to: opts.to,
+    subject: opts.subject,
+    text: opts.text,
+    html: opts.html,
+    replyTo: opts.replyTo ?? e.NOTIFY_TO,
+  });
+}
+
+// ── Confirmation templates ───────────────────────────────────────────────
+// Plain, on-brand text. Kept here so copy lives in one place.
+
+const SIGNOFF = "— The SenayCreatives team\nhttps://senaycreatives.com";
+
+/** Confirmation to a job applicant that we received their application. */
+export async function sendApplicationReceived(to: string, name: string, roleTitle: string) {
+  await sendEmail({
+    to,
+    subject: `We received your application — ${roleTitle}`,
+    text:
+      `Hi ${name},\n\n` +
+      `Thanks for applying for the ${roleTitle} role at SenayCreatives. ` +
+      `We've received your application and CV, and we'll be in touch if there's a fit.\n\n` +
+      `We appreciate the time you took to apply.\n\n${SIGNOFF}`,
+  });
+}
+
+/** Confirmation to a prospective client that we received their inquiry. */
+export async function sendInquiryReceived(to: string, name: string) {
+  await sendEmail({
+    to,
+    subject: "We received your project inquiry",
+    text:
+      `Hi ${name},\n\n` +
+      `Thanks for reaching out to SenayCreatives. We've received your project details ` +
+      `and a member of our team will get back to you shortly.\n\n` +
+      `If you need to add anything in the meantime, just reply to this email.\n\n${SIGNOFF}`,
   });
 }

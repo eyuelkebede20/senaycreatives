@@ -50,5 +50,34 @@ Full-auto build of the internal tooling. Decisions (locked, per CLAUDE.md shared
 3. Serve `/admin` over HTTPS (the session cookie is `secure` in production).
 4. Configure host SMTP + UPLOAD_DIR (carried over from Phase 1).
 
+## 🔴 Live blocker — login returns 500 (host DB connection)
+- Cause: app can't query Postgres in production. The DB password `Ke#0911434441`
+  contains `#`, which **breaks `DATABASE_URL`** (the `#` truncates the password).
+- Fix (host env, cPanel → Setup Node.js App → Environment variables): use the
+  **discrete PG\* fields** instead of DATABASE_URL —
+  `PGHOST=127.0.0.1`, `PGPORT=5432`, `PGUSER=senaycre_maina`,
+  `PGPASSWORD=Ke#0911434441` (raw, no encoding), `PGDATABASE=senaycre_senaypage`.
+  Do **NOT** set `PGSSL` (local socket). Remove/ignore `DATABASE_URL`. Restart the app.
+- Verify: `curl -X POST .../api/auth/login -d '{"email":"x@y.z","password":"x"}'`
+  should return **401** (not 500).
+
+## 📨 Email system (nodemailer) — IN PROGRESS
+- [x] `lib/mailer.ts`: added `sendEmail` (arbitrary recipient) + templates
+      `sendApplicationReceived`, `sendInquiryReceived`
+- [x] Apply route: confirmation email to applicant (best-effort)
+- [x] Intake route: confirmation email to client (best-effort)
+- [ ] Configure host SMTP env so mail actually sends: `SMTP_HOST/PORT/USER/PASS`,
+      `SMTP_FROM`, `NOTIFY_TO` (cPanel email account on the domain)
+- [ ] Later: applicant stage-change emails (e.g. "moving to interview") from the
+      hiring pipeline; HTML templates; per-event opt-in
+- [ ] Later: status-change notification to client on inquiry progress
+
+## 🔍 SEO optimization — TODO (see seo.md for the working checklist)
+- [ ] Per-page metadata (title/description/canonical) for all public pages
+- [ ] JSON-LD: Organization (done) + Service/Breadcrumb/FAQ where relevant
+- [ ] OG/Twitter images per page; verify sitemap + robots
+- [ ] Performance/Core Web Vitals pass (Lighthouse 90+), semantic headings, alt text
+- [ ] Amharic/English considerations if multilingual later
+
 ## Realtime note
 Polling is the default transport (host WebSocket support unverified, per CLAUDE.md). To upgrade later, implement a `BoardTransport` with WebSockets and return it from `createBoardTransport()` in `lib/realtime.ts` — no board-UI changes needed.

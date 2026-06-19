@@ -5,7 +5,7 @@ import { roles } from "@/content/roles";
 import { db } from "@/lib/db";
 import { applications } from "@/db/schema";
 import { saveCv } from "@/lib/uploads";
-import { sendNotification } from "@/lib/mailer";
+import { sendNotification, sendApplicationReceived } from "@/lib/mailer";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" ? v : "");
 
@@ -94,6 +94,14 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error("application notification failed:", err);
+  }
+
+  // Confirmation to the applicant — best-effort, never blocks the response.
+  try {
+    const roleTitle = roles.find((r) => r.slug === data.roleSlug)?.title ?? data.roleSlug;
+    await sendApplicationReceived(data.email, data.name, roleTitle);
+  } catch (err) {
+    console.error("application confirmation email failed:", err);
   }
 
   return NextResponse.json({ ok: true });

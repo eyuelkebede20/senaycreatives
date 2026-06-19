@@ -3,7 +3,7 @@ import { z } from "zod";
 import { intakeSchema } from "@/lib/validation";
 import { db } from "@/lib/db";
 import { submissions } from "@/db/schema";
-import { sendNotification } from "@/lib/mailer";
+import { sendNotification, sendInquiryReceived } from "@/lib/mailer";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -64,6 +64,13 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error("intake notification failed:", err);
+  }
+
+  // Confirmation to the client — best-effort, never blocks the response.
+  try {
+    await sendInquiryReceived(data.email, data.name);
+  } catch (err) {
+    console.error("intake confirmation email failed:", err);
   }
 
   return NextResponse.json({ ok: true });

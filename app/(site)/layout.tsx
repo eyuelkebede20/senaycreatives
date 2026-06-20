@@ -1,6 +1,8 @@
 import { SiteHeader } from "@/components/sections/site-header";
 import { SiteFooter } from "@/components/sections/site-footer";
+import { ContactFab } from "@/components/sections/contact-fab";
 import { OrganizationJsonLd } from "@/components/seo/json-ld";
+import { Analytics } from "@/components/seo/analytics";
 
 // Public marketing chrome. The manager backend (/admin) and /login render
 // outside this group, so they don't get the site header/footer.
@@ -19,6 +21,8 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
         {children}
       </div>
       <SiteFooter />
+      <ContactFab />
+      <Analytics />
     </>
   );
 }

@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/admin", label: "Inbox", exact: true },
   { href: "/admin/applicants", label: "Applicants" },
   { href: "/admin/boards", label: "Boards" },
+  { href: "/admin/blog", label: "Blog" },
 ];
 
 export function AdminNav({ isAdmin = false }: { isAdmin?: boolean }) {

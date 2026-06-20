@@ -7,6 +7,15 @@ Legend: 🟢 I can do now in code · 🟡 needs your assets/decisions · ⚪ ver
 
 ---
 
+## NEW (Round 3) — credibility + blog ✅ DONE
+- [x] Testimonials section on landing + partners (edit `content/partners.ts`)
+- [x] WhatsApp/Telegram/booking contact (floating button + footer) via `content/contact.ts`
+- [x] Privacy policy `/privacy` + footer link + consent note on forms
+- [x] Analytics component (Plausible/GA, opt-in via env)
+- [x] **Blog CMS**: admin-managed posts (`/admin/blog`), public `/blog` + search + `/blog/[slug]`
+- [ ] (you) write real posts; replace placeholder phone/socials/whatsapp in `content/contact.ts`
+- [ ] (deferred) Amharic toggle; one signature motion moment
+
 ## A. Content — replace placeholders 🟡 (needs your real material)
 - [ ] **Team** (`content/team.ts`) — 4 placeholder members. Real names, roles, bios, photos → `/public/team/`.
 - [ ] **Open roles** (`content/roles.ts`) — 3 placeholder roles. Confirm which are actually hiring; real titles/descriptions, set `open` correctly.

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { Wordmark } from "@/components/ui/wordmark";
 import { site } from "@/lib/site";
+import { contact } from "@/content/contact";
 import { services, type ServiceKey } from "@/content/pricing";
 
 const serviceKeys = Object.keys(services) as ServiceKey[];
@@ -50,6 +51,34 @@ export function SiteFooter() {
                 {site.email}
               </a>
             </li>
+            {contact.phone && (
+              <li>
+                <a href={contact.phoneHref} className="text-ink-soft hover:text-ink">
+                  {contact.phone}
+                </a>
+              </li>
+            )}
+            {contact.whatsapp && (
+              <li>
+                <a href={`https://wa.me/${contact.whatsapp}`} target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-ink">
+                  WhatsApp
+                </a>
+              </li>
+            )}
+            {contact.telegram && (
+              <li>
+                <a href={`https://t.me/${contact.telegram}`} target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-ink">
+                  Telegram
+                </a>
+              </li>
+            )}
+            {contact.bookingUrl && (
+              <li>
+                <a href={contact.bookingUrl} target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-ink">
+                  Book a call
+                </a>
+              </li>
+            )}
             {site.socials.map((s) => (
               <li key={s.label}>
                 <a href={s.href} target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-ink">
@@ -66,7 +95,12 @@ export function SiteFooter() {
           <p>
             © {YEAR} {site.name}. All rights reserved.
           </p>
-          <p>Built by SenayCreatives.</p>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-ink">
+              Privacy
+            </Link>
+            <p>Built by SenayCreatives.</p>
+          </div>
         </Container>
       </div>
     </footer>

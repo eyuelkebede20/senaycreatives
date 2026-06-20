@@ -31,6 +31,7 @@ Local: put these in `.env.local` (git-ignored). Production: set them in
 | `DATABASE_URL` | Alt DB connection | Only if the password is URL-safe. `drizzle-kit` + app both read it. |
 | `PGSSL` | `true` to require TLS | **Leave unset on the host** (local socket). Set only for remote/TLS DBs. |
 | `NEXT_PUBLIC_SITE_URL` | Canonical origin | `https://senaycreatives.com` — drives canonicals/OG/sitemap. |
+| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` / `NEXT_PUBLIC_GA_ID` | Analytics (optional) | Set one to turn analytics on; unset = no tracking. |
 | `SMTP_HOST/PORT/USER/PASS` `SMTP_FROM` `NOTIFY_TO` | Email | A cPanel mailbox on the domain. `NOTIFY_TO` = where alerts land. |
 | `UPLOAD_DIR` | CV storage | Absolute path OUTSIDE `public_html`, e.g. `/home/<user>/uploads`. |
 
@@ -59,7 +60,7 @@ Local: put these in `.env.local` (git-ignored). Production: set them in
   SQL from the migrations and run it in **phpPgAdmin**. The DB is reachable only
   from the host (`127.0.0.1`), so migrate/seed on the host or via phpPgAdmin.
 - **Tables:** `submissions`, `applications`, `application_notes`, `users`,
-  `sessions`, `boards`, `board_columns`, `tasks`.
+  `sessions`, `boards`, `board_columns`, `tasks`, `posts`.
 - UUIDs are generated in-app (`randomUUID`), not by the DB.
 
 ## 5. Managers / auth
@@ -82,8 +83,11 @@ All content is typed arrays in `/content` — edit and redeploy:
 - **Partners / testimonials:** `content/partners.ts`.
 - **Open roles:** `content/roles.ts` (`open: true` to list it; `slug` is what the
   application form submits).
-- **Contact / brand:** `content/contact.ts` — phone, email, address, socials.
-  Feeds the footer, team icons, email templates, and LocalBusiness JSON-LD.
+- **Contact / brand:** `content/contact.ts` — phone, email, address, socials, and
+  `whatsapp` / `telegram` / `bookingUrl` (the floating chat buttons + footer links
+  render only for values that are set). Feeds footer, team icons, email templates, JSON-LD.
+- **Blog:** NOT a content file — posts are written in the admin at **`/admin/blog`**
+  (Markdown body, draft/published, optional cover). Public at `/blog` with search.
 - **Images:** drop files in `/public/team`, `/public/partners`, `/public/projects`
   and reference them in the matching content file (placeholders show until then).
 

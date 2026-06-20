@@ -142,6 +142,14 @@ export function IntakeForm({ defaultService, defaultTier }: { defaultService?: s
       >
         {submitting ? "Sending…" : "Send request"}
       </button>
+
+      <p className="text-xs text-muted">
+        By submitting, you agree to our{" "}
+        <a href="/privacy" className="underline hover:text-ink">
+          Privacy Policy
+        </a>
+        .
+      </p>
     </form>
   );
 }

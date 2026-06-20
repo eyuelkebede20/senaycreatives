@@ -16,6 +16,7 @@ export const site = {
     { href: "/projects", label: "Projects" },
     { href: "/partners", label: "Partners" },
     { href: "/team", label: "Team" },
+    { href: "/blog", label: "Blog" },
     { href: "/careers", label: "Hiring Now" },
   ],
 

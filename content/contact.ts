@@ -31,6 +31,12 @@ export const contact = {
     countryCode: "ET",
   },
   url: SITE_URL,
+
+  // Chat / booking channels (big in Ethiopia). Leave a field as "" to hide it.
+  // whatsapp: full number, digits only with country code (no + or spaces).
+  whatsapp: "251900000000", // placeholder — replace or set "" to hide
+  telegram: "senaycreatives", // username without @, or "" to hide
+  bookingUrl: "", // e.g. a Calendly link for discovery calls; "" hides the CTA
   // Absolute logo URL (emails need absolute, not relative, paths).
   logo: `${SITE_URL}/logo-mark.png`,
 

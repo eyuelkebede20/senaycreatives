@@ -42,6 +42,9 @@ export const applicationStatusEnum = pgEnum("application_status", [
 // Manager backend roles. "manager" is the default seat; "admin" can manage users.
 export const userRoleEnum = pgEnum("user_role", ["manager", "admin"]);
 
+// Blog post lifecycle. Only "published" posts are public.
+export const postStatusEnum = pgEnum("post_status", ["draft", "published"]);
+
 // ── Tables ─────────────────────────────────────────────────────────────────
 
 /** "Start a project" client intake form. */
@@ -149,6 +152,23 @@ export const tasks = pgTable("tasks", {
   position: doublePrecision("position").notNull(),
 });
 
+// ── Phase 2: blog ──────────────────────────────────────────────────────────
+
+/** Blog posts, authored in the admin. Content is Markdown. */
+export const posts = pgTable("posts", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  excerpt: text("excerpt"),
+  content: text("content").notNull(), // Markdown
+  cover: text("cover"), // optional /public/blog/… path or URL
+  status: postStatusEnum("status").default("draft").notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+});
+
 export type Submission = typeof submissions.$inferSelect;
 export type NewSubmission = typeof submissions.$inferInsert;
 export type Application = typeof applications.$inferSelect;
@@ -161,3 +181,5 @@ export type Board = typeof boards.$inferSelect;
 export type BoardColumn = typeof boardColumns.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;
+export type Post = typeof posts.$inferSelect;
+export type NewPost = typeof posts.$inferInsert;

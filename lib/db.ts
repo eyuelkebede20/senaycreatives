@@ -14,7 +14,8 @@ export function db() {
     // `require` encrypts without strict cert verification — right for shared
     // hosts with self-signed certs. Only set when PGSSL is truthy.
     const ssl = /^(true|require|1)$/i.test(process.env.PGSSL ?? "") ? ("require" as const) : undefined;
-    const opts = { max: 5, prepare: false } as const; // modest pool; no prepared stmts
+    // modest pool; no prepared stmts; fail fast if the DB is unreachable
+    const opts = { max: 5, prepare: false, connect_timeout: 10 } as const;
     // Prefer discrete fields when present — no URL-encoding of special chars.
     const client = e.PGHOST
       ? postgres({

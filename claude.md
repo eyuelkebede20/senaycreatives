@@ -62,8 +62,9 @@ so future work extends it without rework.
 /app
   /(site)                # Public marketing pages (own layout w/ header/footer)
     /page.tsx            #   Landing
-    /packages /projects /partners /team /careers /start-a-project
-  /admin                 # Manager backend (gated): Inbox, applicants, boards, users
+    /packages /projects /partners /team /careers /start-a-project /privacy
+    /blog                #   Blog index (+ search) and /blog/[slug] post pages
+  /admin                 # Manager backend (gated): Inbox, applicants, boards, blog, users
     /layout.tsx          #   requireUser + admin nav + logout
     /loading.tsx         #   loading skeleton
   /login                 # Sign-in page (outside (site) — no marketing chrome)
@@ -80,9 +81,9 @@ so future work extends it without rework.
   /seo                   # JSON-LD components
 /db
   /schema.ts             # Drizzle schemas: submissions, applications, application_notes,
-  /migrations            #   users, sessions, boards, board_columns, tasks (+ drizzle-kit output)
+  /migrations            #   users, sessions, boards, board_columns, tasks, posts (+ drizzle-kit output)
 /lib                     # db client, env, zod validation, auth (scrypt+sessions),
-                         #   mailer, email-templates, boards loader, realtime transport
+                         #   mailer, email-templates, boards loader, blog (+markdown), realtime transport
 /content
   /pricing.ts            # ← single source of truth for all tiers & prices
   /contact.ts            # ← single source for phone/email/address/logo/socials

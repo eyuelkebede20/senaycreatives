@@ -15,6 +15,13 @@
       "when": 1781768740057,
       "tag": "0001_wild_lenny_balinger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781944321955,
+      "tag": "0002_rich_justice",
+      "breakpoints": true
     }
   ]
 }

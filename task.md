@@ -129,6 +129,17 @@ Full-auto build of the internal tooling. Decisions (locked, per CLAUDE.md shared
 - [x] F2. list.md + task.md updated
 - [ ] F3. Commit + deploy — HELD until back online + DB env fixed (the PG* host change)
 
+## 🚀 ROUND 3 — credibility + blog CMS ✅ DONE (lint + build green, 24 routes)
+- [x] 1. Testimonials section strengthened + on landing (`components/sections/testimonials.tsx`); data in content/partners.ts
+- [x] 2. Contact channels in content/contact.ts (whatsapp/telegram/bookingUrl) → floating ContactFab + footer links (render only if set)
+- [x] 3. `/privacy` page + footer link + consent note on intake & application forms
+- [x] 4. `Analytics` component (Plausible / GA via env, no-op if unset) mounted in (site) layout
+- [x] 5. Blog CMS: `posts` table + migration 0002; `lib/blog.ts` (list/search/get + markdown via `marked`);
+      admin `/admin/blog` list + new/edit editor + create/update/delete actions;
+      public `/blog` (with server-side `?q=` search) + `/blog/[slug]` (markdown render + Article JSON-LD)
+- [x] 6. Blog in site nav + admin nav; sitemap (dynamic+guarded) incl. posts + /privacy; connect_timeout added
+- [ ] (deferred) Amharic i18n toggle + a "signature motion moment" — need translations / design direction
+
 ## 📌 REMAINING WORK (authoritative list, as of this commit)
 
 ### Launch blockers — host-side (need you / back online)

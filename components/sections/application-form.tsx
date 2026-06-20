@@ -118,6 +118,14 @@ export function ApplicationForm() {
       >
         {submitting ? "Submitting…" : "Submit application"}
       </button>
+
+      <p className="text-xs text-muted">
+        By applying, you agree to our{" "}
+        <a href="/privacy" className="underline hover:text-ink">
+          Privacy Policy
+        </a>
+        .
+      </p>
     </form>
   );
 }

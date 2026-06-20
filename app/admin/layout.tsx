@@ -18,7 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin" className="font-display text-sm font-semibold">
             SenayCreatives <span className="text-muted">· Manager</span>
           </Link>
-          <AdminNav />
+          <AdminNav isAdmin={user.role === "admin"} />
           <div className="ml-auto flex items-center gap-3">
             <span className="text-sm text-muted">{user.name}</span>
             <LogoutButton />

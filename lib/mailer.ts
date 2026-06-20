@@ -1,6 +1,7 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { smtpEnv } from "@/lib/env";
+import { applicationReceived, inquiryReceived } from "@/lib/email-templates";
 
 // Lazy transport — created on first send, reused after. No connection at import.
 let _transport: Transporter | null = null;
@@ -55,33 +56,18 @@ export async function sendEmail(opts: {
   });
 }
 
-// ── Confirmation templates ───────────────────────────────────────────────
-// Plain, on-brand text. Kept here so copy lives in one place.
-
-const SIGNOFF = "— The SenayCreatives team\nhttps://senaycreatives.com";
+// ── Confirmation senders ───────────────────────────────────────────────────
+// Copy + branding live in lib/email-templates.ts (which pulls contact details
+// from content/contact.ts). These just send the rendered template.
 
 /** Confirmation to a job applicant that we received their application. */
 export async function sendApplicationReceived(to: string, name: string, roleTitle: string) {
-  await sendEmail({
-    to,
-    subject: `We received your application — ${roleTitle}`,
-    text:
-      `Hi ${name},\n\n` +
-      `Thanks for applying for the ${roleTitle} role at SenayCreatives. ` +
-      `We've received your application and CV, and we'll be in touch if there's a fit.\n\n` +
-      `We appreciate the time you took to apply.\n\n${SIGNOFF}`,
-  });
+  const { subject, text, html } = applicationReceived(name, roleTitle);
+  await sendEmail({ to, subject, text, html });
 }
 
 /** Confirmation to a prospective client that we received their inquiry. */
 export async function sendInquiryReceived(to: string, name: string) {
-  await sendEmail({
-    to,
-    subject: "We received your project inquiry",
-    text:
-      `Hi ${name},\n\n` +
-      `Thanks for reaching out to SenayCreatives. We've received your project details ` +
-      `and a member of our team will get back to you shortly.\n\n` +
-      `If you need to add anything in the meantime, just reply to this email.\n\n${SIGNOFF}`,
-  });
+  const { subject, text, html } = inquiryReceived(name);
+  await sendEmail({ to, subject, text, html });
 }

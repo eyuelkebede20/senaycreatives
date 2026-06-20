@@ -3,9 +3,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { db } from "@/lib/db";
 import { applications } from "@/db/schema";
+import { getSessionUser } from "@/lib/auth";
 
-// Streams an applicant's CV. Gated by middleware (Basic auth on /api/admin/*).
+// Streams an applicant's CV. The edge proxy only checks cookie presence, so we
+// validate the session here too — CVs are personal data, don't leak them.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await getSessionUser())) return new Response("Authentication required.", { status: 401 });
   const { id } = await params;
 
   let row;

@@ -6,6 +6,12 @@ export const metadata: Metadata = {
   title: "Start a project",
   description:
     "Tell SenayCreatives what you're trying to do — pick a package or request a custom quote. We'll come back with a plan.",
+  alternates: { canonical: "/start-a-project" },
+  openGraph: {
+    title: "Start a project · SenayCreatives",
+    description: "Pick a package or request a custom quote — we'll come back with a plan.",
+    url: "/start-a-project",
+  },
 };
 
 export default async function StartAProjectPage({

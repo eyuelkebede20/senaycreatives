@@ -5,6 +5,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  KeyboardSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -13,11 +14,11 @@ import {
   type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Container } from "@/components/ui/container";
 import { useBoardSync, type BoardSnapshot, type BoardTask } from "@/lib/realtime";
-import { addColumn, addTask, deleteColumn, moveTask, updateTask, deleteTask } from "@/app/admin/boards/actions";
+import { addColumn, addTask, deleteColumn, renameColumn, moveTask, updateTask, deleteTask } from "@/app/admin/boards/actions";
 import { POSITION_STEP } from "@/lib/board-constants";
 import { TaskEditor } from "@/components/admin/task-editor";
 
@@ -66,7 +67,10 @@ export function BoardView({ initial }: { initial: BoardSnapshot }) {
     setById(next.byId);
   }, [synced]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   function findContainer(id: string): string | null {
     if (order[id]) return id; // id is a column
@@ -155,6 +159,10 @@ export function BoardView({ initial }: { initial: BoardSnapshot }) {
     setCols((c) => c.filter((x) => x.id !== columnId));
     void run(() => deleteColumn(boardId, columnId));
   }
+  function onRenameColumn(columnId: string, name: string) {
+    setCols((c) => c.map((x) => (x.id === columnId ? { ...x, name } : x)));
+    void run(() => renameColumn(boardId, columnId, name));
+  }
   function onSaveTask(taskId: string, patch: Parameters<typeof updateTask>[2]) {
     setById((prev) => {
       const t = prev[taskId];
@@ -213,6 +221,7 @@ export function BoardView({ initial }: { initial: BoardSnapshot }) {
               members={memberList}
               onAddTask={onAddTask}
               onDeleteColumn={onDeleteColumn}
+              onRenameColumn={onRenameColumn}
               onOpenTask={setEditingId}
             />
           ))}
@@ -246,6 +255,7 @@ function ColumnView({
   members,
   onAddTask,
   onDeleteColumn,
+  onRenameColumn,
   onOpenTask,
 }: {
   column: { id: string; name: string };
@@ -254,28 +264,64 @@ function ColumnView({
   members: { id: string; name: string }[];
   onAddTask: (columnId: string, title: string) => void;
   onDeleteColumn: (columnId: string) => void;
+  onRenameColumn: (columnId: string, name: string) => void;
   onOpenTask: (id: string) => void;
 }) {
   const { setNodeRef } = useDroppable({ id: column.id });
   const [adding, setAdding] = useState(false);
+  const [renaming, setRenaming] = useState(false);
 
   return (
     <section className="flex w-72 shrink-0 flex-col rounded-2xl bg-paper-dim/60 p-3">
-      <div className="flex items-center justify-between px-1 pb-2">
-        <h2 className="text-sm font-semibold">
-          {column.name} <span className="text-muted">{taskIds.length}</span>
-        </h2>
-        <button
-          onClick={() => {
-            if (taskIds.length === 0 || confirm(`Delete column “${column.name}”? Its tasks are deleted too.`)) {
-              onDeleteColumn(column.id);
-            }
-          }}
-          className="text-xs text-muted hover:text-danger"
-          aria-label={`Delete column ${column.name}`}
-        >
-          ✕
-        </button>
+      <div className="flex items-center justify-between gap-2 px-1 pb-2">
+        {renaming ? (
+          <form
+            className="flex-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const name = String(new FormData(e.currentTarget).get("name") ?? "").trim();
+              if (name && name !== column.name) onRenameColumn(column.id, name);
+              setRenaming(false);
+            }}
+          >
+            <input
+              name="name"
+              defaultValue={column.name}
+              autoFocus
+              onBlur={() => setRenaming(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setRenaming(false);
+              }}
+              className="w-full rounded-md border border-line bg-paper px-2 py-1 text-sm font-semibold focus:border-brand focus:outline-none"
+            />
+          </form>
+        ) : (
+          <h2 className="flex-1 cursor-text text-sm font-semibold" onDoubleClick={() => setRenaming(true)} title="Double-click to rename">
+            {column.name} <span className="text-muted">{taskIds.length}</span>
+          </h2>
+        )}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setRenaming(true)}
+            className="text-xs text-muted hover:text-ink"
+            aria-label={`Rename column ${column.name}`}
+            title="Rename"
+          >
+            ✎
+          </button>
+          <button
+            onClick={() => {
+              if (taskIds.length === 0 || confirm(`Delete column “${column.name}”? Its tasks are deleted too.`)) {
+                onDeleteColumn(column.id);
+              }
+            }}
+            className="text-xs text-muted hover:text-danger"
+            aria-label={`Delete column ${column.name}`}
+            title="Delete column"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>

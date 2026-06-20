@@ -5,6 +5,7 @@ import { eq, desc } from "drizzle-orm";
 import { Container } from "@/components/ui/container";
 import { StatusSelect } from "@/components/admin/status-select";
 import { NoteForm } from "@/components/admin/note-form";
+import { ApplicantEmails } from "@/components/admin/applicant-emails";
 import { db } from "@/lib/db";
 import { applications, applicationNotes, users, applicationStatusEnum } from "@/db/schema";
 import { roles } from "@/content/roles";
@@ -82,6 +83,9 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
                 <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{app.coverNote}</p>
               </div>
             )}
+            <div className="mt-6">
+              <ApplicantEmails applicationId={app.id} />
+            </div>
           </section>
 
           <section>

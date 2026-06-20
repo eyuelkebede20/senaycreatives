@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { CallToAction } from "@/components/sections/cta";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { projects } from "@/content/projects";
 
 type Params = { slug: string };
@@ -22,6 +23,12 @@ export async function generateMetadata({
   return {
     title: project.title,
     description: project.problem,
+    alternates: { canonical: `/projects/${project.slug}` },
+    openGraph: {
+      title: `${project.title} · SenayCreatives`,
+      description: project.problem,
+      url: `/projects/${project.slug}`,
+    },
   };
 }
 
@@ -42,6 +49,13 @@ export default async function ProjectPage({
 
   return (
     <main className="flex-1">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", path: "/" },
+          { name: "Projects", path: "/projects" },
+          { name: project.title, path: `/projects/${project.slug}` },
+        ]}
+      />
       <Container className="py-16 sm:py-24">
         <Link href="/projects" className="text-sm font-medium text-brand hover:text-brand-ink">
           ← All projects

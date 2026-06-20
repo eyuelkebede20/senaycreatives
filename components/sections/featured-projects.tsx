@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Section, SectionHeading } from "@/components/ui/section";
 import { ProjectCard } from "@/components/sections/project-card";
-import { projects } from "@/content/projects";
+import { featuredProjects } from "@/content/projects";
 
-const featured = projects.slice(0, 3);
+const featured = featuredProjects;
 
 export function FeaturedProjects() {
   return (

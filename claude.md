@@ -8,7 +8,12 @@ The site itself is a portfolio piece. It must _embody_ creativity while still re
 
 ## Phases
 
-### Phase 1 (current) — Public site
+> **Build status (2026-06):** Phase 1 and Phase 2 are **feature-complete** in code.
+> Remaining to "launch": real content (team photos, logos, covers), the host DB
+> env fix (use discrete `PG*` vars — the password's `#` breaks `DATABASE_URL`),
+> host SMTP creds, and a live Lighthouse pass. See `MAINTENANCE.md` + `list.md`.
+
+### Phase 1 — Public site ✅ built
 
 - **Landing page** — hero, services overview, featured projects, partners strip, CTA
 - **Packages page** — tiered pricing (see Pricing section below)
@@ -18,14 +23,21 @@ The site itself is a portfolio piece. It must _embody_ creativity while still re
 - **Careers (Hiring Now)** — open roles + working CV/portfolio submission form
 - **Start a project** — client intake form (clients pick a package or request a quote)
 
-### Phase 2 (later — do NOT build yet unless asked)
+### Phase 2 — Internal tooling ✅ built
 
-- Internal drag-and-drop kanban PM tool (Figma-smooth feel) with task assignment
-- Applicant tracking for hiring pipeline
-- Auth-gated admin area
-- ⚠️ Realtime note: WebSocket support on this host is unverified. Host provides terminal access, so a workaround (custom Node process, reverse-proxied socket server) is likely possible — but build Phase 2 with **polling as the default transport** behind a swappable interface, and upgrade to WebSockets only after verifying on the host.
+- **Kanban PM tool** — dnd-kit drag-and-drop (pointer + keyboard), columns add/rename/delete,
+  tasks with assignee + due date, fractional-position ordering, optimistic updates.
+- **Applicant tracking** — hiring pipeline board by status, role filter, applicant detail with
+  notes timeline, and one-click stage emails (interview / offer / rejection) that log an audit note.
+- **Auth-gated admin** — DB-backed sessions (`sessions` table), scrypt password hashing via Node's
+  built-in crypto (no native deps), HTTP cookie gate in `proxy.ts` + `requireUser`/`requireAdmin`
+  server-side. Manager accounts seeded via `pnpm create-user` or the admin-only `/admin/users` page.
+  The public site lives in an `app/(site)/` route group so admin/login skip the marketing chrome.
+- **Realtime** — polling is the default transport behind a swappable `BoardTransport` interface
+  (`lib/realtime.ts`); WebSockets can drop in later once verified on the host (unverified by design).
 
-Keep the Phase 1 data layer (projects, team, roles, submissions, packages) structured so Phase 2 builds on it without rework.
+Keep the data layer (projects, team, roles, submissions, applications, users, boards) structured
+so future work extends it without rework.
 
 ## Tech stack (confirmed)
 
@@ -48,28 +60,40 @@ Keep the Phase 1 data layer (projects, team, roles, submissions, packages) struc
 
 ```
 /app
-  /page.tsx              # Landing
-  /packages              # Pricing tiers
-  /projects              # Portfolio
-  /partners              # Partners & clients
-  /team                  # Team
-  /careers               # Hiring Now + application form
-  /start-a-project       # Client intake form
-  /api                   # Form submission routes
+  /(site)                # Public marketing pages (own layout w/ header/footer)
+    /page.tsx            #   Landing
+    /packages /projects /partners /team /careers /start-a-project
+  /admin                 # Manager backend (gated): Inbox, applicants, boards, users
+    /layout.tsx          #   requireUser + admin nav + logout
+    /loading.tsx         #   loading skeleton
+  /login                 # Sign-in page (outside (site) — no marketing chrome)
+  /api
+    /intake /apply       #   public form routes (zod-validated)
+    /auth/login /logout  #   session auth
+    /admin/cv/[id]       #   gated CV download
+    /admin/boards/[id]   #   board snapshot (polled by the kanban UI)
+  /robots.ts /sitemap.ts /manifest.ts /opengraph-image /twitter-image
 /components
-  /ui                    # Primitives
+  /ui                    # Primitives (button, form, social-icons, ...)
   /sections              # Page sections (Hero, Services, TierCard...)
+  /admin                 # Admin UI (board-view, status-select, user-admin, ...)
+  /seo                   # JSON-LD components
 /db
-  /schema.ts             # Drizzle schemas (submissions, applications; Phase 2: tasks, boards)
-  /migrations            # drizzle-kit output
-/lib                     # db client, zod schemas, mailer
+  /schema.ts             # Drizzle schemas: submissions, applications, application_notes,
+  /migrations            #   users, sessions, boards, board_columns, tasks (+ drizzle-kit output)
+/lib                     # db client, env, zod validation, auth (scrypt+sessions),
+                         #   mailer, email-templates, boards loader, realtime transport
 /content
   /pricing.ts            # ← single source of truth for all tiers & prices
-  /projects.ts, team.ts, partners.ts, roles.ts
+  /contact.ts            # ← single source for phone/email/address/logo/socials
+  /projects.ts (+ featuredProjects), team.ts (coreTeam + extendedTeam), partners.ts, roles.ts
+/scripts/create-user.mjs # seed/reset a manager account (no TS build needed)
 /public
 ```
 
-All content lives in `/content` as typed data — never hardcoded in components.
+All content lives in `/content` as typed, editable arrays — never hardcoded in components.
+`content/contact.ts` is the one place for brand contact details (feeds footer, team social
+icons, email templates, and the LocalBusiness structured data).
 
 ## Pricing model
 
@@ -139,20 +163,27 @@ pnpm dev              # local dev
 pnpm build            # must pass before merging to main
 pnpm lint             # eslint + typecheck
 pnpm db:generate      # drizzle-kit generate (new migration from schema change)
-pnpm db:migrate       # apply migrations
+pnpm db:migrate       # apply migrations (reads .env.local; uses PG* or DATABASE_URL)
+pnpm create-user <email> <password> "<name>" [manager|admin]   # seed/reset a manager
 ```
+
+> Deep operational detail (deploy, DB env, SMTP, backups, troubleshooting the
+> login-500, adding content) lives in **`MAINTENANCE.md`**.
 
 ## Done = Phase 1 checklist
 
-- [ ] Landing, Packages, Projects, Partners, Team, Careers, Start-a-project pages
-- [ ] All prices rendered from /content/pricing.ts (zero hardcoded prices in components)
-- [ ] Working CV upload + client intake with validation and clear success/error states
-- [ ] Email notification on every submission
-- [ ] Drizzle schema + first migration applied (submissions, applications tables)
-- [ ] Responsive, accessible, Lighthouse 90+
+- [x] Landing, Packages, Projects, Partners, Team, Careers, Start-a-project pages
+- [x] All prices rendered from /content/pricing.ts (zero hardcoded prices in components)
+- [x] Working CV upload + client intake with validation and clear success/error states
+- [x] Email notification on every submission (+ applicant/client confirmation emails)
+- [x] Drizzle schema + migrations (0000 submissions/applications, 0001 Phase 2 tables)
+- [~] Responsive + accessible (code-level done); **Lighthouse 90+ pending live run**
 
-## Open questions
+## Open questions / launch blockers (host-side)
 
-1. Host's max upload size and SMTP credentials?
-2. Brand assets exist (logo/colors/fonts) or design from scratch?
-3. Real content ready (case studies, team photos, partner logos)? If not, build with clearly-marked placeholders.
+1. **DB connection on host** — use discrete `PG*` env vars (NOT `DATABASE_URL`; the
+   password's `#` truncates the URL). This is the current login-500 cause. See MAINTENANCE.md.
+2. Host's max upload size + SMTP credentials (for nodemailer to actually send).
+3. Real content: team photos → `/public/team`, partner logos → `/public/partners`,
+   project covers → `/public/projects`; real phone/socials in `content/contact.ts`.
+4. Brand assets final (logo/favicon/OG art)?

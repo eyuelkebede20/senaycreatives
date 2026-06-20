@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   title: "Partners",
   description:
     "Organisations SenayCreatives has worked with — including ACHC, Dialogue Ethiopia, and EthioNet Agency.",
+  alternates: { canonical: "/partners" },
+  openGraph: {
+    title: "Partners · SenayCreatives",
+    description: "Organisations across Ethiopia who trusted SenayCreatives with the problem.",
+    url: "/partners",
+  },
 };
 
 export default function PartnersPage() {

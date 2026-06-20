@@ -38,6 +38,25 @@ export async function createBoard(name: string, description?: string): Promise<R
   }
 }
 
+export async function updateBoard(id: string, name: string, description?: string): Promise<Result> {
+  await requireUser();
+  const title = name.trim();
+  if (!title) return { ok: false, error: "Name the board." };
+  if (title.length > 120) return { ok: false, error: "Name is too long." };
+  try {
+    await db()
+      .update(boards)
+      .set({ name: title, description: description?.trim() || null })
+      .where(eq(boards.id, id));
+    revalidatePath("/admin/boards");
+    refresh(id);
+    return { ok: true };
+  } catch (err) {
+    console.error("updateBoard failed:", err);
+    return { ok: false, error: "Couldn't update the board." };
+  }
+}
+
 export async function deleteBoard(id: string): Promise<Result> {
   await requireUser();
   try {

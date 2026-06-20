@@ -1,6 +1,9 @@
 // content/projects.ts — portfolio case studies (problem → solution → result).
-// Real client and capability work. Results are kept qualitative where we don't
-// publish client metrics; refine copy with the client's blessing.
+//
+// EDIT HERE: this is the single hardcoded array of projects. Add/remove entries
+// freely — the Projects page maps over `projects`, and the landing page shows
+// `featuredProjects` (the ones flagged `featured: true`). Each `slug` becomes the
+// case-study URL (/projects/<slug>) so keep it unique and hyphenated.
 
 export type Project = {
   slug: string;
@@ -15,6 +18,8 @@ export type Project = {
   /** Optional cover under /public/projects/… — a styled placeholder shows until it exists. */
   cover?: string;
   tags: string[];
+  /** Show this one on the landing page's "Selected work" strip. */
+  featured?: boolean;
   placeholder?: boolean;
 };
 
@@ -30,6 +35,7 @@ export const projects: Project[] = [
     result: "A professional site that loads quickly and represents the organisation with confidence.",
     url: "https://achc.et",
     tags: ["Website", "Design", "Accessibility"],
+    featured: true,
   },
   {
     slug: "dialogue-ethiopia",
@@ -54,6 +60,7 @@ export const projects: Project[] = [
     result: "A polished site that communicates the agency's offering at a glance.",
     url: "https://ethionetagency.com",
     tags: ["Landing Page", "Conversion", "Brand"],
+    featured: true,
   },
   {
     slug: "database-management-system",
@@ -76,5 +83,11 @@ export const projects: Project[] = [
     solution: "We designed custom automation with AI integration to handle the repetitive steps end to end.",
     result: "Hours of manual work removed each week, with fewer mistakes along the way.",
     tags: ["Automation", "AI integration", "Custom software"],
+    featured: true,
   },
 ];
+
+/** Projects shown on the landing page. Falls back to the first 3 if none flagged. */
+export const featuredProjects: Project[] = projects.filter((p) => p.featured).length
+  ? projects.filter((p) => p.featured)
+  : projects.slice(0, 3);

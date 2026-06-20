@@ -7,6 +7,12 @@ import { roles } from "@/content/roles";
 export const metadata: Metadata = {
   title: "Hiring Now",
   description: "Open roles at SenayCreatives. Send your CV and portfolio — we're a small, senior team that ships.",
+  alternates: { canonical: "/careers" },
+  openGraph: {
+    title: "Hiring Now · SenayCreatives",
+    description: "Open roles at SenayCreatives in Addis Ababa. Send your CV and portfolio.",
+    url: "/careers",
+  },
 };
 
 const openRoles = roles.filter((r) => r.open);

@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { Container } from "@/components/ui/container";
 import { CreateBoard } from "@/components/admin/create-board";
 import { db } from "@/lib/db";
-import { boards, tasks } from "@/db/schema";
+import { tasks } from "@/db/schema";
 import { listBoards } from "@/lib/boards";
 
 export const metadata: Metadata = { title: "Boards", robots: { index: false, follow: false } };

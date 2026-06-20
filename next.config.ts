@@ -10,6 +10,21 @@ const nextConfig: NextConfig = {
   },
   // Next fails the build on type errors by default — we keep that default.
   // Lint runs separately via `pnpm lint`.
+
+  // Baseline security headers (defence in depth; LiteSpeed/Passenger may add more).
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-DNS-Prefetch-Control", value: "on" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

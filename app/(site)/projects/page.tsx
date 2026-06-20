@@ -8,6 +8,12 @@ export const metadata: Metadata = {
   title: "Projects",
   description:
     "Case studies from SenayCreatives — websites, a database management system, and custom automation with AI integration. Problem, solution, result.",
+  alternates: { canonical: "/projects" },
+  openGraph: {
+    title: "Projects · SenayCreatives",
+    description: "Case studies: problem, solution, result — web, custom software, and AI automation in Ethiopia.",
+    url: "/projects",
+  },
 };
 
 export default function ProjectsPage() {

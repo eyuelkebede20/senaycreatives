@@ -85,6 +85,13 @@ export async function requireUser(): Promise<User> {
   return user;
 }
 
+/** Like requireUser, but also requires the "admin" role (else back to /admin). */
+export async function requireAdmin(): Promise<User> {
+  const user = await requireUser();
+  if (user.role !== "admin") redirect("/admin");
+  return user;
+}
+
 /** Verify a login by email + password. Returns the user or null. */
 export async function authenticate(email: string, password: string): Promise<User | null> {
   const rows = await db()

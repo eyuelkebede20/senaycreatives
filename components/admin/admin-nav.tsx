@@ -10,11 +10,12 @@ const LINKS = [
   { href: "/admin/boards", label: "Boards" },
 ];
 
-export function AdminNav() {
+export function AdminNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
+  const links = isAdmin ? [...LINKS, { href: "/admin/users", label: "Users" }] : LINKS;
   return (
     <nav className="flex items-center gap-1">
-      {LINKS.map((l) => {
+      {links.map((l) => {
         const active = l.exact ? pathname === l.href : pathname.startsWith(l.href);
         return (
           <Link

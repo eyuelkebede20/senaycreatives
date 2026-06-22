@@ -2,7 +2,7 @@
 // Designed so Phase 2 (applicant tracking, kanban PM) extends these rather than
 // replacing them: the status enums and timestamps are the seams for that work.
 
-import { pgTable, pgEnum, uuid, text, timestamp, boolean, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, uuid, text, timestamp, boolean, doublePrecision, jsonb } from "drizzle-orm/pg-core";
 import { randomUUID } from "node:crypto";
 
 // ── Enums ──────────────────────────────────────────────────────────────────
@@ -44,6 +44,9 @@ export const userRoleEnum = pgEnum("user_role", ["manager", "admin"]);
 
 // Blog post lifecycle. Only "published" posts are public.
 export const postStatusEnum = pgEnum("post_status", ["draft", "published"]);
+
+// Team task progress.
+export const teamTaskStatusEnum = pgEnum("team_task_status", ["todo", "in_progress", "blocked", "done"]);
 
 // ── Tables ─────────────────────────────────────────────────────────────────
 
@@ -162,11 +165,61 @@ export const posts = pgTable("posts", {
   slug: text("slug").notNull().unique(),
   title: text("title").notNull(),
   excerpt: text("excerpt"),
-  content: text("content").notNull(), // Markdown
+  content: text("content").notNull(), // Markdown (English)
+  // Optional Amharic versions — shown when the visitor's locale is Amharic.
+  titleAm: text("title_am"),
+  excerptAm: text("excerpt_am"),
+  contentAm: text("content_am"),
   cover: text("cover"), // optional /public/blog/… path or URL
   status: postStatusEnum("status").default("draft").notNull(),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+});
+
+// ── Phase 2: teams, team tasks, analytics ──────────────────────────────────
+
+/** A team (folder) of employees. */
+export const teams = pgTable("teams", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+});
+
+/** Team membership (many-to-many users ↔ teams). */
+export const teamMembers = pgTable("team_members", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  teamId: uuid("team_id")
+    .notNull()
+    .references(() => teams.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+});
+
+/** A task assigned to a team. Assigning (creating) emails every member. */
+export const teamTasks = pgTable("team_tasks", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  teamId: uuid("team_id")
+    .notNull()
+    .references(() => teams.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  /** Reference links (videos, docs…): [{ label, url }]. */
+  links: jsonb("links").$type<{ label: string; url: string }[]>().default([]).notNull(),
+  status: teamTaskStatusEnum("status").default("todo").notNull(),
+  dueDate: timestamp("due_date", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+});
+
+/** Lightweight page-view log for the analytics dashboard (no PII). */
+export const pageViews = pgTable("page_views", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  path: text("path").notNull(),
 });
 
 export type Submission = typeof submissions.$inferSelect;
@@ -183,3 +236,7 @@ export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;
 export type Post = typeof posts.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
+export type Team = typeof teams.$inferSelect;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type TeamTask = typeof teamTasks.$inferSelect;
+export type NewTeamTask = typeof teamTasks.$inferInsert;

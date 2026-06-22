@@ -1,50 +1,43 @@
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
-import { Spark } from "@/components/ui/wordmark";
 import { RotatingWord } from "@/components/sections/rotating-word";
+import { HeroBackdrop } from "@/components/sections/hero-backdrop";
+import { getDict } from "@/lib/i18n";
 
-const WORDS = ["apps people love", "sites that convert", "brands that mean it", "growth you can measure"];
-
-export function Hero() {
+export async function Hero() {
+  const t = await getDict();
   return (
     <section className="relative overflow-hidden">
-      {/* Quiet signature backdrop — a single oversized spark, low contrast. */}
-      <Spark
-        aria-hidden
-        className="pointer-events-none absolute -top-16 -right-16 size-[28rem] text-brand/[0.06] sm:-right-24"
-      />
+      {/* The site's signature motion moment — animated, pointer-reactive, reduced-motion safe. */}
+      <HeroBackdrop />
       <Container className="relative py-24 sm:py-32 lg:py-40">
         <p
           className="rise font-display text-sm font-semibold tracking-widest text-brand uppercase"
           style={{ animationDelay: "0ms" }}
         >
-          Digital agency · Addis Ababa
+          {t.hero.eyebrow}
         </p>
 
         <h1
           className="rise mt-6 max-w-4xl font-display text-5xl leading-[1.02] font-semibold text-balance sm:text-7xl"
           style={{ animationDelay: "60ms" }}
-          aria-label="We build apps people love, sites that convert, brands that mean it, and growth you can measure."
+          aria-label={`${t.hero.build} ${t.hero.words.join(", ")}.`}
         >
           <span aria-hidden>
-            We build
+            {t.hero.build}
             <br />
-            <RotatingWord words={WORDS} />
+            <RotatingWord words={t.hero.words} />
           </span>
         </h1>
 
-        <p
-          className="rise mt-8 max-w-xl text-lg text-ink-soft text-pretty"
-          style={{ animationDelay: "120ms" }}
-        >
-          App development, full digitalization, marketing, and landing pages — for
-          businesses that want to mean something online.
+        <p className="rise mt-8 max-w-xl text-lg text-ink-soft text-pretty" style={{ animationDelay: "120ms" }}>
+          {t.hero.subtitle}
         </p>
 
         <div className="rise mt-10 flex flex-wrap gap-3" style={{ animationDelay: "180ms" }}>
-          <Button href="/start-a-project">Start a project</Button>
+          <Button href="/start-a-project">{t.ctaStart}</Button>
           <Button href="/projects" variant="outline">
-            See our work
+            {t.hero.see}
           </Button>
         </div>
       </Container>

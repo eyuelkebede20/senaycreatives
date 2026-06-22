@@ -6,10 +6,13 @@ import { usePathname } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/ui/wordmark";
-import { site } from "@/lib/site";
+import { LanguageToggle } from "@/components/ui/language-toggle";
+import type { Locale } from "@/content/i18n";
 import { cn } from "@/lib/utils";
 
-export function SiteHeader() {
+type NavItem = { href: string; label: string };
+
+export function SiteHeader({ nav, cta, locale }: { nav: NavItem[]; cta: NavItem; locale: Locale }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -42,7 +45,7 @@ export function SiteHeader() {
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
-          {site.nav.map((item) => {
+          {nav.map((item) => {
             const active = pathname === item.href;
             return (
               <Link
@@ -60,8 +63,9 @@ export function SiteHeader() {
           })}
         </nav>
 
-        <div className="hidden md:block">
-          <Button href={site.cta.href}>{site.cta.label}</Button>
+        <div className="hidden items-center gap-3 md:flex">
+          <LanguageToggle current={locale} />
+          <Button href={cta.href}>{cta.label}</Button>
         </div>
 
         {/* Mobile toggle */}
@@ -81,7 +85,7 @@ export function SiteHeader() {
       {open && (
         <div id="mobile-menu" className="border-t border-line bg-paper md:hidden">
           <Container className="flex flex-col gap-1 py-4">
-            {site.nav.map((item) => (
+            {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -91,8 +95,11 @@ export function SiteHeader() {
                 {item.label}
               </Link>
             ))}
-            <Button href={site.cta.href} onClick={() => setOpen(false)} className="mt-2 w-full">
-              {site.cta.label}
+            <div className="px-3 py-3">
+              <LanguageToggle current={locale} />
+            </div>
+            <Button href={cta.href} onClick={() => setOpen(false)} className="mt-2 w-full">
+              {cta.label}
             </Button>
           </Container>
         </div>

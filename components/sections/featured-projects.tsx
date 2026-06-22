@@ -2,20 +2,18 @@ import Link from "next/link";
 import { Section, SectionHeading } from "@/components/ui/section";
 import { ProjectCard } from "@/components/sections/project-card";
 import { featuredProjects } from "@/content/projects";
+import { getDict } from "@/lib/i18n";
 
 const featured = featuredProjects;
 
-export function FeaturedProjects() {
+export async function FeaturedProjects() {
+  const t = await getDict();
   return (
     <Section>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <SectionHeading
-          eyebrow="Selected work"
-          title="Problems, solved."
-          intro="Every project starts with the problem and ends with a measurable result."
-        />
+        <SectionHeading eyebrow={t.featured.eyebrow} title={t.featured.title} intro={t.featured.intro} />
         <Link href="/projects" className="text-sm font-medium text-brand hover:text-brand-ink">
-          All projects →
+          {t.featured.all}
         </Link>
       </div>
 

@@ -4,26 +4,28 @@ import { Wordmark } from "@/components/ui/wordmark";
 import { site } from "@/lib/site";
 import { contact } from "@/content/contact";
 import { services, type ServiceKey } from "@/content/pricing";
+import { getDict } from "@/lib/i18n";
 
 const serviceKeys = Object.keys(services) as ServiceKey[];
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const t = await getDict();
   return (
     <footer className="mt-24 border-t border-line bg-paper-dim">
       <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div className="sm:col-span-2 lg:col-span-1">
           <Wordmark />
-          <p className="mt-4 max-w-xs text-sm text-ink-soft">{site.tagline}</p>
+          <p className="mt-4 max-w-xs text-sm text-ink-soft">{t.footer.tagline}</p>
           <p className="mt-4 text-sm text-muted">{site.location}</p>
         </div>
 
         <nav aria-label="Footer">
-          <h2 className="text-xs font-semibold tracking-widest text-muted uppercase">Explore</h2>
+          <h2 className="text-xs font-semibold tracking-widest text-muted uppercase">{t.footer.explore}</h2>
           <ul className="mt-4 space-y-2 text-sm">
             {site.nav.map((item) => (
               <li key={item.href}>
                 <Link href={item.href} className="text-ink-soft hover:text-ink">
-                  {item.label}
+                  {t.nav[item.href] ?? item.label}
                 </Link>
               </li>
             ))}
@@ -31,7 +33,7 @@ export function SiteFooter() {
         </nav>
 
         <div>
-          <h2 className="text-xs font-semibold tracking-widest text-muted uppercase">Services</h2>
+          <h2 className="text-xs font-semibold tracking-widest text-muted uppercase">{t.footer.services}</h2>
           <ul className="mt-4 space-y-2 text-sm">
             {serviceKeys.map((key) => (
               <li key={key}>
@@ -44,7 +46,7 @@ export function SiteFooter() {
         </div>
 
         <div>
-          <h2 className="text-xs font-semibold tracking-widest text-muted uppercase">Get in touch</h2>
+          <h2 className="text-xs font-semibold tracking-widest text-muted uppercase">{t.footer.getInTouch}</h2>
           <ul className="mt-4 space-y-2 text-sm">
             <li>
               <a href={`mailto:${site.email}`} className="text-ink-soft hover:text-ink">
@@ -93,13 +95,13 @@ export function SiteFooter() {
       <div className="border-t border-line">
         <Container className="flex flex-col items-center justify-between gap-2 py-6 text-xs text-muted sm:flex-row">
           <p>
-            © {YEAR} {site.name}. All rights reserved.
+            © {YEAR} {site.name}. {t.footer.rights}
           </p>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-ink">
-              Privacy
+              {t.footer.privacy}
             </Link>
-            <p>Built by SenayCreatives.</p>
+            <p>{t.footer.built}</p>
           </div>
         </Container>
       </div>

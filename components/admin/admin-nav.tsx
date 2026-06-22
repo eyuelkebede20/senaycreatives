@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/admin", label: "Inbox", exact: true },
+  { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/applicants", label: "Applicants" },
+  { href: "/admin/teams", label: "Teams" },
   { href: "/admin/boards", label: "Boards" },
   { href: "/admin/blog", label: "Blog" },
 ];

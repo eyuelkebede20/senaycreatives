@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Section, SectionHeading } from "@/components/ui/section";
 import { pricing, services, type ServiceKey } from "@/content/pricing";
 import { formatETB } from "@/lib/utils";
+import { getDict } from "@/lib/i18n";
 
 const serviceKeys = Object.keys(services) as ServiceKey[];
 
@@ -28,14 +29,11 @@ const cards: Card[] = serviceKeys.map((key) => {
   };
 });
 
-export function ServicesOverview() {
+export async function ServicesOverview() {
+  const t = await getDict();
   return (
     <Section className="bg-paper-dim">
-      <SectionHeading
-        eyebrow="What we do"
-        title="One partner, the whole digital problem."
-        intro="From a single landing page to a fully digitalized business — pick a productized package or let us scope custom software."
-      />
+      <SectionHeading eyebrow={t.services.eyebrow} title={t.services.title} intro={t.services.intro} />
       <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <Link
@@ -50,7 +48,7 @@ export function ServicesOverview() {
               <span className="text-xs text-muted">{card.note}</span>
             </p>
             <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand">
-              See packages
+              {t.services.see}
               <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
             </span>
           </Link>

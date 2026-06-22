@@ -3,9 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { CallToAction } from "@/components/sections/cta";
-import { getPublishedPost, renderMarkdown } from "@/lib/blog";
+import { getPublishedPost, renderMarkdown, localizePost } from "@/lib/blog";
 import { SITE_URL } from "@/lib/site";
 import { site } from "@/lib/site";
+import { getLocale, getDict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -13,14 +14,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const row = await getPublishedPost(slug);
   if (!row) return { title: "Post not found" };
-  const desc = row.post.excerpt ?? `A post from the ${site.name} team.`;
+  const locale = await getLocale();
+  const l = localizePost(row.post, locale);
+  const desc = l.excerpt ?? `A post from the ${site.name} team.`;
   return {
-    title: row.post.title,
+    title: l.title,
     description: desc,
     alternates: { canonical: `/blog/${row.post.slug}` },
     openGraph: {
       type: "article",
-      title: `${row.post.title} · ${site.name}`,
+      title: `${l.title} · ${site.name}`,
       description: desc,
       url: `/blog/${row.post.slug}`,
       ...(row.post.cover ? { images: [row.post.cover] } : {}),
@@ -41,13 +44,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const row = await getPublishedPost(slug);
   if (!row) notFound();
   const { post, authorName } = row;
-  const html = renderMarkdown(post.content);
+  const [locale, t] = await Promise.all([getLocale(), getDict()]);
+  const l = localizePost(post, locale);
+  const html = renderMarkdown(l.content);
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: post.title,
-    description: post.excerpt ?? undefined,
+    headline: l.title,
+    description: l.excerpt ?? undefined,
     datePublished: post.publishedAt?.toISOString(),
     dateModified: post.updatedAt.toISOString(),
     author: { "@type": "Organization", name: site.name },
@@ -61,16 +66,16 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <Container className="max-w-2xl py-16 sm:py-24">
         <Link href="/blog" className="text-sm text-muted hover:text-ink">
-          ← All posts
+          {t.blog.allPosts}
         </Link>
-        <h1 className="mt-6 font-display text-4xl font-semibold text-balance sm:text-5xl">{post.title}</h1>
+        <h1 className="mt-6 font-display text-4xl font-semibold text-balance sm:text-5xl">{l.title}</h1>
         <p className="mt-4 text-sm text-muted">
           {post.publishedAt && new Intl.DateTimeFormat("en-GB", { dateStyle: "long" }).format(post.publishedAt)}
           {authorName ? ` · ${authorName}` : ""}
         </p>
         {post.cover && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.cover} alt={post.title} className="mt-8 w-full rounded-2xl object-cover" />
+          <img src={post.cover} alt={l.title} className="mt-8 w-full rounded-2xl object-cover" />
         )}
         {/* Content is admin-authored Markdown rendered to HTML (trusted source). */}
         <div className={PROSE} dangerouslySetInnerHTML={{ __html: html }} />

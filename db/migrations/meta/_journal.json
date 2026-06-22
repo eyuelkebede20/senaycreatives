@@ -22,6 +22,20 @@
       "when": 1781944321955,
       "tag": "0002_rich_justice",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781946880894,
+      "tag": "0003_young_red_shift",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781993487967,
+      "tag": "0004_robust_galactus",
+      "breakpoints": true
     }
   ]
 }

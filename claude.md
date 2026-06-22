@@ -29,6 +29,15 @@ The site itself is a portfolio piece. It must _embody_ creativity while still re
   tasks with assignee + due date, fractional-position ordering, optimistic updates.
 - **Applicant tracking** — hiring pipeline board by status, role filter, applicant detail with
   notes timeline, and one-click stage emails (interview / offer / rejection) that log an audit note.
+- **Teams & task assignment** — admin builds teams from employees via a drag-and-drop board
+  (`/admin/teams`), opens a team to assign tasks (title, description, reference links, due date,
+  progress status); assigning a task **emails every team member**. Tables: `teams`, `team_members`,
+  `team_tasks`.
+- **Analytics dashboard** — `/admin` shows page views (7d/30d/top pages, from a lightweight
+  `page_views` log + `/api/track` beacon), plus counts (employees, leads, applications, posts,
+  teams, open tasks) and team task-progress.
+- **Bilingual (EN/አማ)** — cookie locale + editable dictionary (`content/i18n.ts`), toggle in the
+  header; chrome + full landing translated; blog posts have optional Amharic fields.
 - **Auth-gated admin** — DB-backed sessions (`sessions` table), scrypt password hashing via Node's
   built-in crypto (no native deps), HTTP cookie gate in `proxy.ts` + `requireUser`/`requireAdmin`
   server-side. Manager accounts seeded via `pnpm create-user` or the admin-only `/admin/users` page.
@@ -64,13 +73,15 @@ so future work extends it without rework.
     /page.tsx            #   Landing
     /packages /projects /partners /team /careers /start-a-project /privacy
     /blog                #   Blog index (+ search) and /blog/[slug] post pages
-  /admin                 # Manager backend (gated): Inbox, applicants, boards, blog, users
+  /admin                 # Manager backend (gated): dashboard, applicants, teams, boards, blog, users
     /layout.tsx          #   requireUser + admin nav + logout
     /loading.tsx         #   loading skeleton
+    /teams               #   drag-and-drop teams + per-team task assignment
   /login                 # Sign-in page (outside (site) — no marketing chrome)
   /api
     /intake /apply       #   public form routes (zod-validated)
     /auth/login /logout  #   session auth
+    /track               #   public page-view beacon (analytics)
     /admin/cv/[id]       #   gated CV download
     /admin/boards/[id]   #   board snapshot (polled by the kanban UI)
   /robots.ts /sitemap.ts /manifest.ts /opengraph-image /twitter-image
@@ -80,10 +91,11 @@ so future work extends it without rework.
   /admin                 # Admin UI (board-view, status-select, user-admin, ...)
   /seo                   # JSON-LD components
 /db
-  /schema.ts             # Drizzle schemas: submissions, applications, application_notes,
-  /migrations            #   users, sessions, boards, board_columns, tasks, posts (+ drizzle-kit output)
-/lib                     # db client, env, zod validation, auth (scrypt+sessions),
-                         #   mailer, email-templates, boards loader, blog (+markdown), realtime transport
+  /schema.ts             # Drizzle: submissions, applications, application_notes, users, sessions,
+  /migrations            #   boards, board_columns, tasks, posts, teams, team_members, team_tasks,
+                         #   page_views (+ drizzle-kit output)
+/lib                     # db client, env, zod validation, auth (scrypt+sessions), mailer,
+                         #   email-templates, boards, blog (+markdown), teams, analytics, realtime, i18n
 /content
   /pricing.ts            # ← single source of truth for all tiers & prices
   /contact.ts            # ← single source for phone/email/address/logo/socials

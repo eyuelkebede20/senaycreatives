@@ -12,6 +12,9 @@ type Existing = {
   excerpt: string | null;
   cover: string | null;
   content: string;
+  titleAm: string | null;
+  excerptAm: string | null;
+  contentAm: string | null;
   status: "draft" | "published";
 };
 
@@ -29,6 +32,9 @@ export function PostEditor({ post }: { post?: Existing }) {
       excerpt: String(fd.get("excerpt") ?? ""),
       cover: String(fd.get("cover") ?? ""),
       content: String(fd.get("content") ?? ""),
+      titleAm: String(fd.get("titleAm") ?? ""),
+      excerptAm: String(fd.get("excerptAm") ?? ""),
+      contentAm: String(fd.get("contentAm") ?? ""),
       status: (String(fd.get("status") ?? "draft") as "draft" | "published"),
     };
     setError(null);
@@ -81,6 +87,20 @@ export function PostEditor({ post }: { post?: Existing }) {
       <Field label="Content (Markdown)" htmlFor="p-content" required hint="Supports Markdown: # headings, **bold**, links, lists, etc.">
         <Textarea id="p-content" name="content" defaultValue={post?.content} className="min-h-80 font-mono text-sm" />
       </Field>
+
+      {/* Amharic (optional) — shown to visitors using the አማ toggle; falls back to English. */}
+      <fieldset className="grid gap-5 rounded-2xl border border-line p-5">
+        <legend className="px-2 text-sm font-semibold text-muted">Amharic version (optional)</legend>
+        <Field label="ርዕስ (Amharic title)" htmlFor="p-title-am">
+          <Input id="p-title-am" name="titleAm" defaultValue={post?.titleAm ?? ""} />
+        </Field>
+        <Field label="ማጠቃለያ (Amharic excerpt)" htmlFor="p-excerpt-am">
+          <Textarea id="p-excerpt-am" name="excerptAm" defaultValue={post?.excerptAm ?? ""} className="min-h-20" />
+        </Field>
+        <Field label="ይዘት (Amharic content, Markdown)" htmlFor="p-content-am">
+          <Textarea id="p-content-am" name="contentAm" defaultValue={post?.contentAm ?? ""} className="min-h-60 font-mono text-sm" />
+        </Field>
+      </fieldset>
 
       {error && <p className="text-sm text-danger">{error}</p>}
 

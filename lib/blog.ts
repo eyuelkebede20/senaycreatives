@@ -3,6 +3,7 @@ import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { marked } from "marked";
 import { db } from "@/lib/db";
 import { posts, users, type Post } from "@/db/schema";
+import type { Locale } from "@/content/i18n";
 
 // Public list shape (no full content — keep list payloads small).
 export type PostCard = {
@@ -10,6 +11,8 @@ export type PostCard = {
   slug: string;
   title: string;
   excerpt: string | null;
+  titleAm: string | null;
+  excerptAm: string | null;
   cover: string | null;
   publishedAt: Date | null;
 };
@@ -19,9 +22,28 @@ const CARD = {
   slug: posts.slug,
   title: posts.title,
   excerpt: posts.excerpt,
+  titleAm: posts.titleAm,
+  excerptAm: posts.excerptAm,
   cover: posts.cover,
   publishedAt: posts.publishedAt,
 };
+
+// ── Localisation helpers (fall back to English when Amharic is missing) ─────
+export function cardTitle(c: PostCard, locale: Locale): string {
+  return locale === "am" && c.titleAm ? c.titleAm : c.title;
+}
+export function cardExcerpt(c: PostCard, locale: Locale): string | null {
+  return locale === "am" && c.excerptAm ? c.excerptAm : c.excerpt;
+}
+/** Pick the localized title/excerpt/content for a full post. */
+export function localizePost(post: Post, locale: Locale) {
+  const am = locale === "am";
+  return {
+    title: am && post.titleAm ? post.titleAm : post.title,
+    excerpt: am && post.excerptAm ? post.excerptAm : post.excerpt,
+    content: am && post.contentAm ? post.contentAm : post.content,
+  };
+}
 
 /** Turn a title into a URL-safe slug. */
 export function slugify(s: string): string {
@@ -57,7 +79,14 @@ export async function searchPublishedPosts(q: string): Promise<PostCard[]> {
     .where(
       and(
         eq(posts.status, "published"),
-        or(ilike(posts.title, term), ilike(posts.excerpt, term), ilike(posts.content, term)),
+        or(
+          ilike(posts.title, term),
+          ilike(posts.excerpt, term),
+          ilike(posts.content, term),
+          ilike(posts.titleAm, term),
+          ilike(posts.excerptAm, term),
+          ilike(posts.contentAm, term),
+        ),
       ),
     )
     .orderBy(desc(posts.publishedAt));

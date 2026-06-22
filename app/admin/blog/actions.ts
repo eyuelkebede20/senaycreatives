@@ -15,6 +15,10 @@ const postSchema = z.object({
   slug: z.string().trim().max(80).optional().or(z.literal("")),
   excerpt: z.string().trim().max(300).optional().or(z.literal("")),
   content: z.string().trim().min(1, "Content is required"),
+  // Optional Amharic versions.
+  titleAm: z.string().trim().max(180).optional().or(z.literal("")),
+  excerptAm: z.string().trim().max(300).optional().or(z.literal("")),
+  contentAm: z.string().trim().optional().or(z.literal("")),
   cover: z.string().trim().max(500).optional().or(z.literal("")),
   status: z.enum(["draft", "published"]),
 });
@@ -49,6 +53,9 @@ export async function createPost(input: PostInput): Promise<Result<{ id: string 
         title: d.title,
         excerpt: d.excerpt || null,
         content: d.content,
+        titleAm: d.titleAm || null,
+        excerptAm: d.excerptAm || null,
+        contentAm: d.contentAm || null,
         cover: d.cover || null,
         status: d.status,
         publishedAt: d.status === "published" ? new Date() : null,

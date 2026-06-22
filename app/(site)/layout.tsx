@@ -3,10 +3,19 @@ import { SiteFooter } from "@/components/sections/site-footer";
 import { ContactFab } from "@/components/sections/contact-fab";
 import { OrganizationJsonLd } from "@/components/seo/json-ld";
 import { Analytics } from "@/components/seo/analytics";
+import { PageView } from "@/components/seo/page-view";
+import { site } from "@/lib/site";
+import { getLocale, getDict } from "@/lib/i18n";
 
 // Public marketing chrome. The manager backend (/admin) and /login render
 // outside this group, so they don't get the site header/footer.
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+export default async function SiteLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
+  const t = await getDict();
+  // Translated nav labels (fall back to the English label if a key is missing).
+  const nav = site.nav.map((item) => ({ href: item.href, label: t.nav[item.href] ?? item.label }));
+  const cta = { href: site.cta.href, label: t.ctaStart };
+
   return (
     <>
       <a
@@ -16,13 +25,14 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
         Skip to content
       </a>
       <OrganizationJsonLd />
-      <SiteHeader />
+      <SiteHeader nav={nav} cta={cta} locale={locale} />
       <div id="main-content" className="flex flex-1 flex-col">
         {children}
       </div>
       <SiteFooter />
       <ContactFab />
       <Analytics />
+      <PageView />
     </>
   );
 }

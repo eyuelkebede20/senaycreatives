@@ -162,7 +162,29 @@ export function inquiryReply(name: string, message = "We'd love to learn more ab
   ]);
 }
 
-/** 6. Flexible generic message. Pass HTML-safe heading + body (esc() user values). */
+/** 7. Task assigned to a team member (sent to each member on assignment). */
+export function taskAssigned(
+  name: string,
+  teamName: string,
+  taskTitle: string,
+  opts: { description?: string | null; links?: { label: string; url: string }[]; dueDate?: string | null } = {},
+): EmailContent {
+  const body: string[] = [
+    `Your team <strong>${esc(teamName)}</strong> has a new task: <strong>${esc(taskTitle)}</strong>.`,
+  ];
+  if (opts.description) body.push(esc(opts.description));
+  if (opts.dueDate) body.push(`<strong>Due:</strong> ${esc(opts.dueDate)}`);
+  if (opts.links && opts.links.length) {
+    const items = opts.links
+      .map((l) => `<a href="${esc(l.url)}" style="color:#1f4dff;">${esc(l.label || l.url)}</a>`)
+      .join(" · ");
+    body.push(`<strong>Links:</strong> ${items}`);
+  }
+  body.push(`You can track this task with your team in the SenayCreatives workspace.`);
+  return build(`New task for ${teamName}: ${taskTitle}`, `Hi ${esc(name)}, you have a new task.`, body);
+}
+
+/** 8. Flexible generic message. Pass HTML-safe heading + body (esc() user values). */
 export function genericMessage(subject: string, headingHtml: string, bodyHtml: string[]): EmailContent {
   return build(subject, headingHtml, bodyHtml);
 }

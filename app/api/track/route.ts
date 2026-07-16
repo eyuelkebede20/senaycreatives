@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { pageViews } from "@/db/schema";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 // Lightweight, public page-view logging for the analytics dashboard. No PII —
 // just the path. Best-effort: never block or error the client.
 export async function POST(req: Request) {
+  // Cap beacon spam per IP; a real reader browses many pages, so keep it loose.
+  // Silently accept when over-limit — a dropped beacon must never surface an error.
+  const rl = rateLimit(`track:${clientIp(req)}`, 120, 60 * 1000);
+  if (!rl.ok) return NextResponse.json({ ok: true });
+
   let path = "";
   try {
     const body = await req.json();

@@ -6,9 +6,11 @@ import { Container } from "@/components/ui/container";
 import { StatusSelect } from "@/components/admin/status-select";
 import { NoteForm } from "@/components/admin/note-form";
 import { ApplicantEmails } from "@/components/admin/applicant-emails";
+import { HireWorker } from "@/components/admin/hire-worker";
 import { db } from "@/lib/db";
 import { applications, applicationNotes, users, applicationStatusEnum } from "@/db/schema";
 import { roles } from "@/content/roles";
+import { GUILDS, guildForRole } from "@/content/guilds";
 import { updateApplicationStatus, addApplicationNote } from "../actions";
 
 export const metadata: Metadata = { title: "Applicant", robots: { index: false, follow: false } };
@@ -85,6 +87,14 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
             )}
             <div className="mt-6">
               <ApplicantEmails applicationId={app.id} />
+            </div>
+            <div className="mt-6 border-t border-line pt-6">
+              <HireWorker
+                applicationId={app.id}
+                guilds={GUILDS.map((g) => ({ slug: g.slug, label: g.label }))}
+                defaultGuild={guildForRole(app.roleSlug)}
+                alreadyHired={app.status === "hired"}
+              />
             </div>
           </section>
 

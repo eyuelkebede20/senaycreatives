@@ -180,8 +180,24 @@ export function taskAssigned(
       .join(" · ");
     body.push(`<strong>Links:</strong> ${items}`);
   }
-  body.push(`You can track this task with your team in the SenayCreatives workspace.`);
+  body.push(`Please coordinate with your team and reply to this email with any questions.`);
   return build(`New task for ${teamName}: ${taskTitle}`, `Hi ${esc(name)}, you have a new task.`, body);
+}
+
+/** 7b. Welcome a newly-hired worker into the collective (with temp credentials). */
+export function workerWelcome(
+  name: string,
+  guildLabel: string,
+  username: string,
+  tempPassword: string,
+  loginUrl: string,
+): EmailContent {
+  return build(`Welcome to the ${contact.name} collective, ${name}`, `Welcome aboard, ${esc(name)} 🎉`, [
+    `You've been brought into the <strong>${esc(guildLabel)}</strong> guild. Your handle is <strong>@${esc(username)}</strong> — it becomes your public portfolio once you have accepted work.`,
+    `Sign in to your workspace here: <a href="${esc(loginUrl)}" style="color:#1f4dff;">${esc(loginUrl)}</a>`,
+    `Temporary password: <strong>${esc(tempPassword)}</strong> — ask an admin to reset it for you any time.`,
+    `We're glad you're here. Reply to this email with any questions.`,
+  ]);
 }
 
 /** 8. Flexible generic message. Pass HTML-safe heading + body (esc() user values). */

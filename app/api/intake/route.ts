@@ -4,8 +4,13 @@ import { intakeSchema } from "@/lib/validation";
 import { db } from "@/lib/db";
 import { submissions } from "@/db/schema";
 import { sendNotification, sendInquiryReceived } from "@/lib/mailer";
+import { rateLimit, clientIp, tooMany } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
+  // Abuse guard: a handful of inquiries per IP per 10 minutes.
+  const rl = rateLimit(`intake:${clientIp(req)}`, 5, 10 * 60 * 1000);
+  if (!rl.ok) return tooMany(rl.retryAfterSec);
+
   let body: unknown;
   try {
     body = await req.json();

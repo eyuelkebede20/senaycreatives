@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { desc } from "drizzle-orm";
 import { Container } from "@/components/ui/container";
 import { StatusSelect } from "@/components/admin/status-select";
+import { ConvertClient } from "@/components/admin/convert-client";
 import { db } from "@/lib/db";
 import { submissions, submissionStatusEnum } from "@/db/schema";
 import { getAnalytics } from "@/lib/analytics";
@@ -123,7 +124,10 @@ export default async function DashboardPage() {
                   <Td className="whitespace-nowrap">{s.budget ?? "—"}</Td>
                   <Td className="max-w-sm whitespace-pre-wrap text-ink-soft">{s.message}</Td>
                   <Td>
-                    <StatusSelect id={s.id} current={s.status} statuses={SUB_STATUSES} action={updateSubmissionStatus} />
+                    <div className="flex flex-col items-start gap-2">
+                      <StatusSelect id={s.id} current={s.status} statuses={SUB_STATUSES} action={updateSubmissionStatus} />
+                      {s.status === "won" && <ConvertClient submissionId={s.id} />}
+                    </div>
                   </Td>
                 </tr>
               ))}

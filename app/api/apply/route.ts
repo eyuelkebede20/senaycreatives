@@ -6,10 +6,15 @@ import { db } from "@/lib/db";
 import { applications } from "@/db/schema";
 import { saveCv } from "@/lib/uploads";
 import { sendNotification, sendApplicationReceived } from "@/lib/mailer";
+import { rateLimit, clientIp, tooMany } from "@/lib/rate-limit";
 
 const str = (v: FormDataEntryValue | null) => (typeof v === "string" ? v : "");
 
 export async function POST(req: Request) {
+  // Abuse guard: a handful of CV uploads per IP per 10 minutes.
+  const rl = rateLimit(`apply:${clientIp(req)}`, 5, 10 * 60 * 1000);
+  if (!rl.ok) return tooMany(rl.retryAfterSec);
+
   let form: FormData;
   try {
     form = await req.formData();

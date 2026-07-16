@@ -35,12 +35,15 @@ export function LoginForm({ next }: { next: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed.data),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        router.replace(next);
+        // Workers never belong in /admin — send them to their portal instead of
+        // whatever `next` was (which the admin layout would bounce anyway).
+        const target = data.role === "worker" && next.startsWith("/admin") ? "/work" : next;
+        router.replace(target);
         router.refresh();
         return;
       }
-      const data = await res.json().catch(() => ({}));
       setServerError(data.error ?? "Couldn't sign you in. Please try again.");
     } catch {
       setServerError("Network error. Please try again.");

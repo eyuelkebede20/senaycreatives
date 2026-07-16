@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { users, sessions, type User } from "@/db/schema";
+import { users, sessions, type User, type UserRole } from "@/db/schema";
 
 // DB-backed sessions with scrypt-hashed passwords. No external auth deps —
 // Node's built-in crypto only, so nothing native needs compiling on the
@@ -90,6 +90,25 @@ export async function requireAdmin(): Promise<User> {
   const user = await requireUser();
   if (user.role !== "admin") redirect("/admin");
   return user;
+}
+
+/**
+ * Require the user to hold one of `roles`. App-Router native (server-side, via
+ * getSessionUser — NOT edge middleware). This is the real authorization boundary
+ * for a route group's layout; nav hiding is only cosmetics. A mismatched user is
+ * sent to their own home (workers → /work, staff → /admin).
+ */
+export async function requireRole(...roles: UserRole[]): Promise<User> {
+  const user = await requireUser();
+  if (!roles.includes(user.role)) {
+    redirect(user.role === "worker" ? "/work" : "/admin");
+  }
+  return user;
+}
+
+/** Where a freshly-authenticated user should land, by role. */
+export function homeForRole(role: UserRole): string {
+  return role === "worker" ? "/work" : "/admin";
 }
 
 /** Verify a login by email + password. Returns the user or null. */

@@ -3,7 +3,7 @@ import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { teams, teamMembers, teamTasks, users, type TeamTask } from "@/db/schema";
 
-export type Employee = { id: string; name: string; email: string; role: "manager" | "admin" };
+export type Employee = { id: string; name: string; email: string; role: "manager" | "admin" | "worker" };
 export type Member = { id: string; name: string; email: string };
 export type TeamWithMembers = { id: string; name: string; description: string | null; members: Member[] };
 

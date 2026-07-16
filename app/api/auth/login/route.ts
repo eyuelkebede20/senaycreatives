@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { loginSchema } from "@/lib/validation";
 import { authenticate, createSession } from "@/lib/auth";
+import { rateLimit, clientIp, tooMany } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
+  // Brute-force guard: the dummy-hash timing defense flattens enumeration, but
+  // nothing throttled repeated guesses until now. 10 attempts per IP / 15 min.
+  const rl = rateLimit(`login:${clientIp(req)}`, 10, 15 * 60 * 1000);
+  if (!rl.ok) return tooMany(rl.retryAfterSec);
+
   let body: unknown;
   try {
     body = await req.json();
@@ -29,5 +35,6 @@ export async function POST(req: Request) {
   }
 
   await createSession(user.id);
-  return NextResponse.json({ ok: true });
+  // Return the role so the client can land the user on the right home.
+  return NextResponse.json({ ok: true, role: user.role });
 }

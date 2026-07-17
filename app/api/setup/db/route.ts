@@ -12,6 +12,19 @@ import { db } from "@/lib/db";
 //   /api/setup/db?secret=YOUR_SETUP_SECRET&create=1   -> diagnose + apply
 export const dynamic = "force-dynamic";
 
+// Surface the real Postgres error (drizzle wraps it in e.cause), not just
+// "Failed query: …" — code/detail are what diagnose owner/permission issues.
+type PgErr = { message?: string; code?: string; detail?: string };
+const errInfo = (e: unknown) => {
+  const cause = (e as { cause?: PgErr })?.cause;
+  return {
+    error: String((e as Error)?.message ?? e).slice(0, 300),
+    cause: cause?.message?.slice(0, 300),
+    code: cause?.code,
+    detail: cause?.detail?.slice(0, 300),
+  };
+};
+
 const ENUMS = [
   `DO $$ BEGIN CREATE TYPE public.team_task_status AS ENUM ('todo','in_progress','blocked','done'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
   `DO $$ BEGIN CREATE TYPE public.bench_state AS ENUM ('bench','active','inactive'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
@@ -78,33 +91,41 @@ export async function GET(req: Request) {
   }
 
   const d = db();
-  const report: Record<string, unknown> = {};
+  const report: Record<string, unknown> = { version: 2 };
 
   // Which database are we actually connected to?
   try {
     const rows = await d.execute(
-      sql`select current_database() as database, current_user as "user", current_schema() as schema, inet_server_addr()::text as host`,
+      sql`select current_database() as database, current_user as "user", current_schema() as schema, inet_server_addr()::text as host, current_setting('server_version') as pg_version`,
     );
     report.connection = rows[0] ?? rows;
   } catch (e) {
-    report.connectionError = String(e);
+    report.connectionError = errInfo(e);
   }
 
-  // Which of the relevant tables already exist?
+  // Full public-schema table map + who owns what (owner mismatches are the
+  // usual reason ALTERs fail on shared hosting).
   try {
     const rows = await d.execute(sql`
-      select table_name from information_schema.tables
-      where table_schema = 'public'
-        and table_name in ('users','submissions','teams','clients','work_items','work_events','credit_ledger')
-      order by table_name`);
+      select tablename as table_name, tableowner as owner
+      from pg_tables where schemaname = 'public' order by tablename`);
     report.existingTables = rows;
   } catch (e) {
-    report.tableCheckError = String(e);
+    report.tableCheckError = errInfo(e);
+  }
+  try {
+    const rows = await d.execute(sql`
+      select t.typname as enum_name, pg_get_userbyid(t.typowner) as owner
+      from pg_type t join pg_namespace n on n.oid = t.typnamespace
+      where n.nspname = 'public' and t.typtype = 'e' order by t.typname`);
+    report.existingEnums = rows;
+  } catch (e) {
+    report.enumCheckError = errInfo(e);
   }
 
   if (url.searchParams.get("create") === "1") {
     const ran: string[] = [];
-    const failed: { stmt: string; error: string }[] = [];
+    const failed: ({ stmt: string } & ReturnType<typeof errInfo>)[] = [];
     const all = [...ENUMS, ROLE_VALUE, ...USER_COLUMNS, ...TABLES, ...FKS];
     for (const stmt of all) {
       try {
@@ -112,7 +133,7 @@ export async function GET(req: Request) {
         ran.push(stmt.slice(0, 72));
       } catch (e) {
         // Guards catch the expected cases; anything here is genuinely unexpected.
-        failed.push({ stmt: stmt.slice(0, 120), error: String(e) });
+        failed.push({ stmt: stmt.slice(0, 120), ...errInfo(e) });
       }
     }
     report.applied = ran.length;
@@ -123,7 +144,7 @@ export async function GET(req: Request) {
       const rows = await d.execute(sql`select count(*)::int as clients from public.clients`);
       report.clientsReadable = (rows[0] as { clients: number } | undefined)?.clients ?? rows;
     } catch (e) {
-      report.verifyError = String(e);
+      report.verifyError = errInfo(e);
     }
     if (failed.length) return NextResponse.json({ ok: false, ...report }, { status: 500 });
   }

@@ -11,9 +11,14 @@
 **Building:** Phase A (A1, A2, A3, A6-light) + Phase B (B1–B10) + a minimal `/work`
 worker landing so worker login doesn't 404 (light slice of D1/D6, rest deferred).
 
-**Held / deferred (with reason):**
-- **A4 (R2 storage migration)** — needs real Cloudflare R2 credentials + `@aws-sdk/client-s3`;
-  writing it blind would risk the working disk-based CV flow. Left as-is; flagged for the user.
+**Resolved after owner review (2026-07-16):**
+- **A4 → shared-hosting disk, R2 dropped.** R2/Vercel was serverless-only reasoning. Shared host
+  has a persistent disk, so the existing `lib/uploads.ts` disk flow is correct and already works.
+  Video = YouTube/Vimeo links (in `work_items.links`); images = disk when Phase D/E lands. No code change.
+- **DB migration is not a hosting change** — `db/apply-0005-shared-hosting.sql` is an idempotent,
+  phpPgAdmin-safe script to apply 0005 on the shared host (like the blog-table workaround).
+
+**Held (with reason):**
 - **A5 (delete `/setup/*` + `/api/setup/blog`)** — HELD. We're on the very branch that added
   the blog setup route; deleting it here could strand prod blog bootstrap. Surface to user;
   routes are inert while `SETUP_SECRET` is unset, so the risk is low. Decide before prod worker login.

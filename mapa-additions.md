@@ -23,7 +23,7 @@
 - [x] **A1.** ✅ `user_role` += `worker`; `requireRole(...roles)` + `homeForRole()` in `lib/auth.ts` (server-side via getSessionUser); admin layout switched to `requireRole("manager","admin")`; login route returns role, form redirects worker→/work; `proxy.ts` unchanged.
 - [x] **A2.** ✅ `taskAssigned` copy fixed — nonexistent-workspace line removed.
 - [x] **A3.** ✅ `lib/rate-limit.ts` (in-memory fixed-window) on apply/intake/track + login throttle.
-- [ ] **A4.** **DECIDED: Vercel + Cloudflare R2** — DEFERRED: needs real R2 creds + `@aws-sdk/client-s3`; not done blind. Disk-based CV flow left intact. Store object *key* in `applications.cvPath` (rename → `cvKey`), sign on demand in `/api/admin/cv/[id]`.
+- [x] **A4.** **REVERSED → shared-hosting disk (no R2, no Vercel).** R2 was only ever needed for a *serverless* (ephemeral-FS) deploy. On the shared host (Passenger, persistent writable disk) the existing `lib/uploads.ts` disk flow to `UPLOAD_DIR` is correct and already works — CVs survive redeploys because the dir is outside the deploy folder. No `cvKey` rename, no signed URLs, no SDK. `/api/admin/cv/[id]` keeps streaming from disk behind its session check. **Future images (Phase D/E)** extend the same disk helper; **video is YouTube/Vimeo links** (already stored in `work_items.links`) — never host raw video. Revisit R2 *only if* we ever move to serverless.
 - [ ] **A5.** Delete `/setup/*` + `/api/setup/blog` — HELD: we're on the branch that added the blog route; inert while `SETUP_SECRET` unset. Decide before first prod worker login. ⚠ Do not add a guard that throws when the secret is missing.
 - [x] **A6.** ✅ Guild taxonomy landed (`content/guilds.ts`: enum + `ROLE_TO_GUILD` + `guildForRole`). Soft mapping used at hire time — **not** a hard DB constraint on `role_slug` (would break existing rows).
 
@@ -88,7 +88,7 @@ Bridges & minimal UI:
 
 | # | Decision | Resolution | Notes |
 |---|---|---|---|
-| 1 | Hosting | **Vercel + Cloudflare R2** | Matches existing deploy pattern; object-*key* storage pattern per A4 |
+| 1 | Hosting + storage | ~~Vercel + R2~~ → **Shared hosting + local disk** (owner decision, 2026-07-16) | R2 was serverless-only reasoning; shared host has a persistent disk. Video = YouTube/Vimeo links, images = disk. See revised A4. |
 | 2 | Guild representation | **Postgres enum now**, table at Stage 2 | Table when guild leads/standards need metadata |
 | 3 | `team_tasks` fate | **Delete — at Phase D**, not immediately | See C4 sequencing |
 | 4 | Client identity | **Signed one-tap URLs**, no client accounts | Per D4; revisit only if clients demand history views |

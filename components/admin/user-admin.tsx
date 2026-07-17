@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Field, Input, Select } from "@/components/ui/form";
-import { createUser, setUserDisabled } from "@/app/admin/users/actions";
+import { createUser, setUserDisabled, resetUserPassword } from "@/app/admin/users/actions";
 
 export type UserRow = {
   id: string;
@@ -51,6 +51,18 @@ export function UserAdmin({ users, currentUserId }: { users: UserRow[]; currentU
     });
   }
 
+  const [reset, setReset] = useState<{ name: string; tempPassword: string } | null>(null);
+
+  function resetPassword(u: UserRow) {
+    setError(null);
+    setReset(null);
+    startTransition(async () => {
+      const res = await resetUserPassword(u.id);
+      if (res.ok) setReset({ name: u.name, tempPassword: res.tempPassword });
+      else setError(res.error);
+    });
+  }
+
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_1.3fr]">
       {/* Add / reset a user */}
@@ -90,6 +102,16 @@ export function UserAdmin({ users, currentUserId }: { users: UserRow[]; currentU
         <h2 className="font-display text-lg font-semibold">
           Accounts <span className="text-muted">({users.length})</span>
         </h2>
+
+        {reset && (
+          <div className="mt-3 rounded-2xl border border-success/40 bg-success/10 p-4 text-sm">
+            <p className="font-semibold text-ink">Temporary password for {reset.name} — copy it now.</p>
+            <p className="mt-2 text-ink-soft">
+              <code className="rounded bg-paper px-1.5 py-0.5">{reset.tempPassword}</code>
+            </p>
+            <p className="mt-2 text-xs text-muted">Not shown again. Share it securely; they can change it under Profile.</p>
+          </div>
+        )}
         <div className="mt-4 overflow-x-auto rounded-2xl border border-line">
           <table className="w-full min-w-[34rem] text-left text-sm">
             <thead className="bg-paper-dim text-xs tracking-wide text-muted uppercase">
@@ -113,15 +135,25 @@ export function UserAdmin({ users, currentUserId }: { users: UserRow[]; currentU
                   <td className="px-4 py-3">
                     <span className={u.disabled ? "text-danger" : "text-success"}>{u.disabled ? "Disabled" : "Active"}</span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => toggle(u)}
-                      disabled={pending || (u.id === currentUserId && !u.disabled)}
-                      className="rounded-full border border-line px-3 py-1 text-xs font-medium hover:border-ink disabled:opacity-40"
-                      title={u.id === currentUserId && !u.disabled ? "You can't disable yourself" : undefined}
-                    >
-                      {u.disabled ? "Enable" : "Disable"}
-                    </button>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => resetPassword(u)}
+                        disabled={pending}
+                        className="rounded-full border border-line px-3 py-1 text-xs font-medium hover:border-ink disabled:opacity-40"
+                        title="Set a new temporary password"
+                      >
+                        Reset password
+                      </button>
+                      <button
+                        onClick={() => toggle(u)}
+                        disabled={pending || (u.id === currentUserId && !u.disabled)}
+                        className="rounded-full border border-line px-3 py-1 text-xs font-medium hover:border-ink disabled:opacity-40"
+                        title={u.id === currentUserId && !u.disabled ? "You can't disable yourself" : undefined}
+                      >
+                        {u.disabled ? "Enable" : "Disable"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -22,7 +22,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
           <AdminNav isAdmin={user.role === "admin"} />
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-sm text-muted">{user.name}</span>
+            <Link href="/admin/profile" className="text-sm text-muted transition-colors hover:text-ink" title="Profile & password">
+              {user.name}
+            </Link>
             <LogoutButton />
           </div>
         </Container>

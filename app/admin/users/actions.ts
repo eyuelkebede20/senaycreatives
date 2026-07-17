@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { users, userRoleEnum } from "@/db/schema";
 import { requireAdmin, hashPassword } from "@/lib/auth";
+import { generateTempPassword } from "@/lib/workers";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -41,6 +42,24 @@ export async function createUser(input: { email: string; name: string; password:
   }
   revalidatePath("/admin/users");
   return { ok: true };
+}
+
+type ResetResult = { ok: true; tempPassword: string } | { ok: false; error: string };
+
+/** Reset a user's password to a fresh temporary one, shown once to the admin. */
+export async function resetUserPassword(id: string): Promise<ResetResult> {
+  await requireAdmin();
+  const tempPassword = generateTempPassword();
+  try {
+    const passwordHash = await hashPassword(tempPassword);
+    const rows = await db().update(users).set({ passwordHash }).where(eq(users.id, id)).returning({ id: users.id });
+    if (rows.length === 0) return { ok: false, error: "User not found." };
+  } catch (err) {
+    console.error("resetUserPassword failed:", err);
+    return { ok: false, error: "Couldn't reset the password." };
+  }
+  revalidatePath("/admin/users");
+  return { ok: true, tempPassword };
 }
 
 /** Enable/disable an account. An admin can't disable themselves (lockout guard). */

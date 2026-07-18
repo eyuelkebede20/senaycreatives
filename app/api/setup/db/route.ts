@@ -2,18 +2,16 @@ import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 
-// ⚠️ TEMPORARY, SETUP_SECRET-gated. Applies the guild-model schema (migrations
-// 0004 + 0005) through the app's OWN database connection — so it can't hit the
-// "wrong" database the way a manual phpPgAdmin session can. Every statement is
-// idempotent and each FK is guarded, so re-runs and missing prerequisites are
-// safe. Mirrors db/apply-0005-shared-hosting.sql. Delete once applied.
+// SETUP_SECRET-gated, READ-ONLY prod-DB diagnostics. The schema-mutation
+// (`create=1`) power was removed 2026-07-18 after migration 0005 landed
+// (MAPA §8 A5); schema changes now go through phpPgAdmin as `senaycre` —
+// see db/fix-grants-shared-hosting.sql for why (table-ownership split).
+// Inert while SETUP_SECRET is unset. Kept because the DB is firewalled to
+// the host, making this the only remote window into its actual state.
 //
-//   /api/setup/db?secret=YOUR_SETUP_SECRET            -> diagnose only
-//   /api/setup/db?secret=YOUR_SETUP_SECRET&create=1   -> diagnose + apply
+//   /api/setup/db?secret=YOUR_SETUP_SECRET   -> diagnose only
 export const dynamic = "force-dynamic";
 
-// Surface the real Postgres error (drizzle wraps it in e.cause), not just
-// "Failed query: …" — code/detail are what diagnose owner/permission issues.
 type PgErr = { message?: string; code?: string; detail?: string };
 const errInfo = (e: unknown) => {
   const cause = (e as { cause?: PgErr })?.cause;
@@ -25,63 +23,6 @@ const errInfo = (e: unknown) => {
   };
 };
 
-const ENUMS = [
-  `DO $$ BEGIN CREATE TYPE public.team_task_status AS ENUM ('todo','in_progress','blocked','done'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN CREATE TYPE public.bench_state AS ENUM ('bench','active','inactive'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN CREATE TYPE public.client_status AS ENUM ('trial','active','paused','churned'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN CREATE TYPE public.credit_reason AS ENUM ('period_grant','rollover','work_accepted','adjustment','expiry'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN CREATE TYPE public.guild AS ENUM ('video','editing','design','content','smm'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN CREATE TYPE public.package_slug AS ENUM ('spark','momentum','full_engine'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN CREATE TYPE public.subscription_status AS ENUM ('trial','active','paused','cancelled'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN CREATE TYPE public.talent_tier AS ENUM ('rising','pro'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN CREATE TYPE public.work_event AS ENUM ('requested','assigned','draft_submitted','qa_passed','revision_requested','accepted','rated'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-];
-
-// ADD VALUE cannot run in the same transaction that later USES it, so keep this
-// isolated (postgres-js runs each execute() on its own). 'worker' isn't used here.
-const ROLE_VALUE = `ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'worker'`;
-
-const USER_COLUMNS = [
-  `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS username text`,
-  `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS guild public.guild`,
-  `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS bench_state public.bench_state`,
-  `DO $$ BEGIN ALTER TABLE public.users ADD CONSTRAINT users_username_unique UNIQUE (username); EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL; END $$`,
-];
-
-const TABLES = [
-  `CREATE TABLE IF NOT EXISTS public.teams ("id" uuid PRIMARY KEY NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "name" text NOT NULL, "description" text)`,
-  `CREATE TABLE IF NOT EXISTS public.team_members ("id" uuid PRIMARY KEY NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "team_id" uuid NOT NULL, "user_id" uuid NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS public.team_tasks ("id" uuid PRIMARY KEY NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "updated_at" timestamptz DEFAULT now() NOT NULL, "team_id" uuid NOT NULL, "title" text NOT NULL, "description" text, "links" jsonb DEFAULT '[]'::jsonb NOT NULL, "status" public.team_task_status DEFAULT 'todo' NOT NULL, "due_date" timestamptz, "created_by" uuid)`,
-  `CREATE TABLE IF NOT EXISTS public.page_views ("id" uuid PRIMARY KEY NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "path" text NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS public.clients ("id" uuid PRIMARY KEY NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "name" text NOT NULL, "org" text, "contact_email" text NOT NULL, "contact_phone" text, "source_submission_id" uuid, "status" public.client_status DEFAULT 'trial' NOT NULL, "notes" text)`,
-  `CREATE TABLE IF NOT EXISTS public.packages ("id" uuid PRIMARY KEY NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "slug" public.package_slug NOT NULL, "name" text NOT NULL, "monthly_credits" integer NOT NULL, "price_etb" integer NOT NULL, "sla_hours" integer NOT NULL, "talent_tier" public.talent_tier DEFAULT 'pro' NOT NULL, "active" boolean DEFAULT true NOT NULL, CONSTRAINT "packages_slug_unique" UNIQUE ("slug"))`,
-  `CREATE TABLE IF NOT EXISTS public.subscriptions ("id" uuid PRIMARY KEY NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "client_id" uuid NOT NULL, "package_id" uuid, "status" public.subscription_status DEFAULT 'trial' NOT NULL, "started_at" timestamptz DEFAULT now() NOT NULL, "min_term_ends_at" timestamptz, "current_period_start" timestamptz, "current_period_end" timestamptz)`,
-  `CREATE TABLE IF NOT EXISTS public.work_items ("id" uuid PRIMARY KEY NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "updated_at" timestamptz DEFAULT now() NOT NULL, "client_id" uuid NOT NULL, "guild" public.guild NOT NULL, "type" text NOT NULL, "credit_price" integer NOT NULL, "title" text NOT NULL, "brief" text, "links" jsonb DEFAULT '[]'::jsonb NOT NULL, "assignee_id" uuid, "team_id" uuid, "due_at" timestamptz, "current_status" public.work_event DEFAULT 'requested' NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS public.work_events ("id" uuid PRIMARY KEY NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "work_item_id" uuid NOT NULL, "event" public.work_event NOT NULL, "actor_id" uuid, "payload" jsonb DEFAULT '{}'::jsonb NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS public.credit_ledger ("id" uuid PRIMARY KEY NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "client_id" uuid NOT NULL, "delta" integer NOT NULL, "reason" public.credit_reason NOT NULL, "work_item_id" uuid, "expires_at" timestamptz, "created_by" uuid)`,
-];
-
-const guardFk = (table: string, name: string, fk: string) =>
-  `DO $$ BEGIN ALTER TABLE public.${table} ADD CONSTRAINT ${name} ${fk}; EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_table THEN NULL; WHEN undefined_column THEN NULL; END $$`;
-
-const FKS = [
-  guardFk("team_members", "team_members_team_id_teams_id_fk", `FOREIGN KEY ("team_id") REFERENCES public.teams("id") ON DELETE cascade`),
-  guardFk("team_members", "team_members_user_id_users_id_fk", `FOREIGN KEY ("user_id") REFERENCES public.users("id") ON DELETE cascade`),
-  guardFk("team_tasks", "team_tasks_team_id_teams_id_fk", `FOREIGN KEY ("team_id") REFERENCES public.teams("id") ON DELETE cascade`),
-  guardFk("team_tasks", "team_tasks_created_by_users_id_fk", `FOREIGN KEY ("created_by") REFERENCES public.users("id") ON DELETE set null`),
-  guardFk("clients", "clients_source_submission_id_submissions_id_fk", `FOREIGN KEY ("source_submission_id") REFERENCES public.submissions("id") ON DELETE set null`),
-  guardFk("subscriptions", "subscriptions_client_id_clients_id_fk", `FOREIGN KEY ("client_id") REFERENCES public.clients("id") ON DELETE cascade`),
-  guardFk("subscriptions", "subscriptions_package_id_packages_id_fk", `FOREIGN KEY ("package_id") REFERENCES public.packages("id") ON DELETE set null`),
-  guardFk("work_items", "work_items_client_id_clients_id_fk", `FOREIGN KEY ("client_id") REFERENCES public.clients("id") ON DELETE cascade`),
-  guardFk("work_items", "work_items_assignee_id_users_id_fk", `FOREIGN KEY ("assignee_id") REFERENCES public.users("id") ON DELETE set null`),
-  guardFk("work_items", "work_items_team_id_teams_id_fk", `FOREIGN KEY ("team_id") REFERENCES public.teams("id") ON DELETE set null`),
-  guardFk("work_events", "work_events_work_item_id_work_items_id_fk", `FOREIGN KEY ("work_item_id") REFERENCES public.work_items("id") ON DELETE cascade`),
-  guardFk("work_events", "work_events_actor_id_users_id_fk", `FOREIGN KEY ("actor_id") REFERENCES public.users("id") ON DELETE set null`),
-  guardFk("credit_ledger", "credit_ledger_client_id_clients_id_fk", `FOREIGN KEY ("client_id") REFERENCES public.clients("id") ON DELETE cascade`),
-  guardFk("credit_ledger", "credit_ledger_work_item_id_work_items_id_fk", `FOREIGN KEY ("work_item_id") REFERENCES public.work_items("id") ON DELETE set null`),
-  guardFk("credit_ledger", "credit_ledger_created_by_users_id_fk", `FOREIGN KEY ("created_by") REFERENCES public.users("id") ON DELETE set null`),
-];
-
 export async function GET(req: Request) {
   const expected = process.env.SETUP_SECRET;
   const url = new URL(req.url);
@@ -91,7 +32,7 @@ export async function GET(req: Request) {
   }
 
   const d = db();
-  const report: Record<string, unknown> = { version: 2 };
+  const report: Record<string, unknown> = { version: 3 };
 
   // Which database are we actually connected to?
   try {
@@ -103,8 +44,8 @@ export async function GET(req: Request) {
     report.connectionError = errInfo(e);
   }
 
-  // Full public-schema table map + who owns what (owner mismatches are the
-  // usual reason ALTERs fail on shared hosting).
+  // Full public-schema table map + owners (owner mismatches are the usual
+  // reason ALTERs fail on shared hosting).
   try {
     const rows = await d.execute(sql`
       select tablename as table_name, tableowner as owner
@@ -123,30 +64,20 @@ export async function GET(req: Request) {
     report.enumCheckError = errInfo(e);
   }
 
-  if (url.searchParams.get("create") === "1") {
-    const ran: string[] = [];
-    const failed: ({ stmt: string } & ReturnType<typeof errInfo>)[] = [];
-    const all = [...ENUMS, ROLE_VALUE, ...USER_COLUMNS, ...TABLES, ...FKS];
-    for (const stmt of all) {
-      try {
-        await d.execute(sql.raw(stmt));
-        ran.push(stmt.slice(0, 72));
-      } catch (e) {
-        // Guards catch the expected cases; anything here is genuinely unexpected.
-        failed.push({ stmt: stmt.slice(0, 120), ...errInfo(e) });
-      }
-    }
-    report.applied = ran.length;
-    report.failed = failed;
-
-    // Confirm the app can now read the new tables.
+  // Column map for a named table (?columns=posts) — diagnoses missing-column
+  // 500s without guessing.
+  const table = url.searchParams.get("columns");
+  if (table && /^[a-z_][a-z0-9_]{0,62}$/.test(table)) {
     try {
-      const rows = await d.execute(sql`select count(*)::int as clients from public.clients`);
-      report.clientsReadable = (rows[0] as { clients: number } | undefined)?.clients ?? rows;
+      const rows = await d.execute(sql`
+        select column_name, data_type, is_nullable
+        from information_schema.columns
+        where table_schema = 'public' and table_name = ${table}
+        order by ordinal_position`);
+      report.columns = { table, rows };
     } catch (e) {
-      report.verifyError = errInfo(e);
+      report.columnsError = errInfo(e);
     }
-    if (failed.length) return NextResponse.json({ ok: false, ...report }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, ...report });

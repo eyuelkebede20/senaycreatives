@@ -56,11 +56,22 @@ Local: put these in `.env.local` (git-ignored). Production: set them in
 - **Schema changes:** edit `db/schema.ts` → `pnpm db:generate` → commit the new
   migration → `pnpm db:migrate` (reads `.env.local`). One migration per change;
   don't hand-edit generated SQL.
-- **First-time / manual setup** (when remote DB access is firewalled): generate
-  SQL from the migrations and run it in **phpPgAdmin**. The DB is reachable only
-  from the host (`127.0.0.1`), so migrate/seed on the host or via phpPgAdmin.
+- **Applying on prod** (the DB is firewalled to the host, reachable only from
+  `127.0.0.1`): paste the migration SQL into **phpPgAdmin as `senaycre`**.
+- ⚠️ **Table-ownership split (learned 2026-07-18):** tables created via
+  phpPgAdmin are owned by `senaycre`; the app connects as `senaycre_maina`.
+  The app user **cannot `ALTER`** senaycre-owned tables (pg error 42501), and
+  new senaycre tables used to need manual grants — fixed by
+  `db/fix-grants-shared-hosting.sql` (grants + `ALTER DEFAULT PRIVILEGES`, so
+  future senaycre-created tables auto-grant). Keep running migrations as
+  `senaycre` and this stays painless.
+- **Prod DB diagnostics without DB access:** `GET /api/setup/db?secret=<SETUP_SECRET>`
+  (read-only; add `&columns=<table>` for a column map). Inert unless
+  `SETUP_SECRET` is set in the cPanel app env.
 - **Tables:** `submissions`, `applications`, `application_notes`, `users`,
-  `sessions`, `boards`, `board_columns`, `tasks`, `posts`.
+  `sessions`, `boards`, `board_columns`, `tasks`, `posts`, `teams`,
+  `team_members`, `team_tasks`, `page_views`, `clients`, `packages`,
+  `subscriptions`, `credit_ledger`, `work_items`, `work_events`.
 - UUIDs are generated in-app (`randomUUID`), not by the DB.
 
 ## 5. Managers / auth

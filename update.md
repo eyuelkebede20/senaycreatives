@@ -22,34 +22,36 @@ all routes present, prod smoke-tested (public 200, admin routes gated).
 
 ---
 
+## Shipped — 2026-07-18
+
+- [x] **Admin login seeded + verified** (via the `/setup` server action once `SETUP_SECRET` was set;
+      login returns `{ok, role: admin}`). Change the password at `/admin/profile`.
+- [x] **Migrations 0004+0005 live on prod.** Root cause of the failures was a **table-ownership
+      split**: phpPgAdmin-created tables belong to `senaycre`, the app connects as `senaycre_maina`
+      with no automatic grants (pg error 42501). Fixed by `db/fix-grants-shared-hosting.sql`
+      (grants + default privileges). `/admin/clients` + `/admin/work` verified 200.
+- [x] **`/admin/workspace` floor map** — teams as tables (lamp lit when staffed), click for members
+      + ledger-derived delivery score, drag work from the hub onto a table → `assigned` event +
+      email to every member. New "Workspace" nav tab.
+- [x] **A5 cleanup done:** `app/setup` + `/api/setup/blog` deleted; `/api/setup/db` reduced to
+      **read-only diagnostics** (kept because the DB is firewalled — it's the only remote window
+      into prod DB state; supports `?columns=<table>`).
+
 ## Next steps / outstanding
 
-### 🔴 Blockers (host-side)
+### 🔴 Blockers
 
-- [ ] **Seed the admin login.** The DB is firewalled to the host, so it can't be seeded from a dev
-      machine. Three ways, any one works:
-      1. **phpPgAdmin** (no restart, no env) — run a single idempotent `INSERT … ON CONFLICT` into
-         `users` with a pre-hashed `scrypt$…` password. Generate the hash + SQL with
-         `node scripts/create-user.mjs …` logic, or ask the assistant to regenerate it.
-      2. **`/setup` page** — needs `SETUP_SECRET` set in **cPanel → Setup Node.js App → Environment
-         variables** (then Restart). Visit `/setup`, enter secret + email + password.
-      3. **cPanel Terminal** — `pnpm create-user <email> <password> "<name>" admin` on the host.
-- [ ] **Apply migration `0005` on the prod DB.** Until applied, `/admin/clients` and `/admin/work`
-      will error (the rest of admin is fine). Apply via `/api/setup/db?secret=…&create=1` **or** paste
-      `db/apply-0005-shared-hosting.sql` into phpPgAdmin.
-- [ ] **Shared-hosting resource limit** (blocked cPanel changes on 2026-07-17). Investigate entry-
-      process / memory / inode caps; may need plan upgrade or to wait for the window to reset.
+- [ ] **`/blog` 500 — one phpPgAdmin paste.** Prod `posts` is missing newer columns (amharic +
+      cover). Paste `db/manual/2026-07-18_fix_posts_columns.sql` (as `senaycre`). No redeploy needed.
 
-### 🟡 Cleanup / hardening (after login works)
+### 🟡 Hardening / ops
 
-- [ ] **Remove the temporary setup surface** and unset `SETUP_SECRET` (MAPA §8 A5): delete
-      `app/setup`, `app/api/setup/db`, `app/api/setup/blog`. Inert while the secret is unset, so
-      low-risk, but don't leave a secret-gated schema-mutation route in prod long-term.
-- [ ] **`SETUP_SECRET` only belongs in cPanel**, never in a committed file. The local `.env` copy
-      does nothing for production.
-- [ ] Watch for the Turbopack lazy-chunk error seen on `/setup` ("can't infer type of chunk 5003").
-      Usually a stale cached chunk after a fresh deploy (hard refresh clears it); confirm it's gone
-      after the next deploy.
+- [ ] **Unset `SETUP_SECRET` in cPanel** (or rotate it) — the mutation routes are gone, but the
+      diagnostics route should not share a secret that ever circulated in chat/files.
+- [ ] **Rule for future schema changes:** the app user cannot `ALTER` `senaycre`-owned tables
+      (users, posts, clients, …). Run future migration SQL in **phpPgAdmin as `senaycre`** — the
+      default-privileges grant now auto-extends access to the app user.
+- [ ] `gh` CLI token expired (401) — re-auth to watch Actions runs (`gh auth login`).
 
 ### 🟢 Content & launch polish
 

@@ -8,10 +8,11 @@ The site itself is a portfolio piece. It must _embody_ creativity while still re
 
 ## Phases
 
-> **Build status (2026-06):** Phase 1 and Phase 2 are **feature-complete** in code.
-> Remaining to "launch": real content (team photos, logos, covers), the host DB
-> env fix (use discrete `PG*` vars — the password's `#` breaks `DATABASE_URL`),
-> host SMTP creds, and a live Lighthouse pass. See `MAINTENANCE.md` + `list.md`.
+> **Build status (2026-07):** Phases 1, 2, and **3 (Guild model — MAPA §8 A+B)** are
+> **feature-complete** in code and **deployed to production**. Remaining to "launch":
+> seed the admin login + apply migration `0005` on the host (see `update.md`), real
+> content (team photos, logos, covers), host SMTP creds, and a live Lighthouse pass.
+> See **`update.md`** (current status + next steps), `MAINTENANCE.md`, `mapa-additions.md`, `list.md`.
 
 ### Phase 1 — Public site ✅ built
 
@@ -48,6 +49,45 @@ The site itself is a portfolio piece. It must _embody_ creativity while still re
 Keep the data layer (projects, team, roles, submissions, applications, users, boards) structured
 so future work extends it without rework.
 
+### Phase 3 — Guild model ✅ built (MAPA §8 A+B)
+
+Turns the agency into a **creative guild** with a client-work engine. Full plan + deferred
+phases (C/D/E) live in `mapa-additions.md`; this is what shipped.
+
+- **Worker role + role-aware routing** — `user_role` enum += `worker`; `requireRole(...roles)`
+  and `homeForRole()` in `lib/auth.ts` (server-side); the admin backend is gated to
+  `manager`/`admin`, workers land on `/work`. Login route returns the role; the form redirects
+  workers accordingly. `proxy.ts` (edge cookie gate) unchanged.
+- **Guild taxonomy** — `content/guilds.ts`: `guild` enum (Video / Editing / Design / Content / SMM)
+  + `ROLE_TO_GUILD` / `guildForRole`. Soft mapping applied at hire time (not a hard DB constraint).
+- **Rate limiting** — `lib/rate-limit.ts` (in-memory fixed-window) on apply, intake, track, and a
+  login throttle (10 / IP / 15 min).
+- **Client spine + work ledger** (migration `0005`) — tables `clients`, `packages`,
+  `subscriptions`, `credit_ledger`, `work_items`, `work_events`. `lib/ledger.ts` is the projection
+  layer: append-only event stream, state machine, credits **debit on `accepted`** in the same txn
+  with a `SELECT … FOR UPDATE` row lock. Seed data: `content/rate-card.ts`, `content/packages.ts`.
+- **Bridges & UI** — applicant **"Hire → create worker"** (`/admin/applicants/[id]`: worker +
+  guild + bench state + unique `@username` + temp password + welcome email); submission
+  **"→ Client"** on `won` (dashboard) → `/admin/clients` (list / manual create / status /
+  **credit grants**); `/admin/work` (list + create) and `/admin/work/[id]` (event-stream action
+  panel enforcing the state machine).
+- **Worker portal (minimal)** — `/work`: read-only assigned items + guild/bench badges (the full
+  portal — draft submit, QA queue, client ratings — is deferred Phase D).
+
+**Account recovery (shipped alongside Phase 3):**
+
+- **`/admin/profile`** — any signed-in user changes their own password (verifies current, blocks
+  reuse); admins also get a one-click **SMTP test** button.
+- **`/admin/users`** — admin **"Reset password"** issues a one-time temp password.
+- **Bootstrap / ops routes** (temporary, `SETUP_SECRET`-gated): `/setup` creates/resets an admin;
+  `/api/setup/db` applies migrations 0004+0005 on the host; `/api/setup/blog` creates the blog
+  table; `db/apply-0005-shared-hosting.sql` is the phpPgAdmin twin. **Remove these + unset
+  `SETUP_SECRET` once the admin exists** (MAPA §8 A5).
+
+**Deferred (triggers not met — see `mapa-additions.md`):** Phase C (pods / guild table, ~8
+creatives), Phase D (full worker portal, ~100 deliverables), Phase E (Chapa payments, credit
+rollover, `@username` portfolio generator, ops dashboards, promotion automation).
+
 ## Tech stack (confirmed)
 
 - **Framework:** Next.js (App Router) + TypeScript — deployed as a Node app on shared hosting (standalone build)
@@ -74,16 +114,22 @@ so future work extends it without rework.
     /packages /projects /partners /team /careers /start-a-project /privacy
     /blog                #   Blog index (+ search) and /blog/[slug] post pages
   /admin                 # Manager backend (gated): dashboard, applicants, teams, boards, blog, users
-    /layout.tsx          #   requireUser + admin nav + logout
+    /layout.tsx          #   requireRole(manager,admin) + admin nav + logout
     /loading.tsx         #   loading skeleton
     /teams               #   drag-and-drop teams + per-team task assignment
+    /clients             #   client spine: list/create/status + credit grants (Phase 3)
+    /work /work/[id]     #   work-item ledger: list/create + event-stream action panel (Phase 3)
+    /profile             #   self-service password change + admin SMTP test (Phase 3)
+  /work                  # Worker portal (gated worker/manager/admin): read-only assigned items
+  /setup                 # ⚠ TEMPORARY SETUP_SECRET-gated admin bootstrap — remove after use
   /login                 # Sign-in page (outside (site) — no marketing chrome)
   /api
-    /intake /apply       #   public form routes (zod-validated)
+    /intake /apply       #   public form routes (zod-validated, rate-limited)
     /auth/login /logout  #   session auth
     /track               #   public page-view beacon (analytics)
     /admin/cv/[id]       #   gated CV download
     /admin/boards/[id]   #   board snapshot (polled by the kanban UI)
+    /setup/db /setup/blog #  ⚠ TEMPORARY SETUP_SECRET-gated host DB/blog migration — remove after use
   /robots.ts /sitemap.ts /manifest.ts /opengraph-image /twitter-image
 /components
   /ui                    # Primitives (button, form, social-icons, ...)
@@ -93,13 +139,17 @@ so future work extends it without rework.
 /db
   /schema.ts             # Drizzle: submissions, applications, application_notes, users, sessions,
   /migrations            #   boards, board_columns, tasks, posts, teams, team_members, team_tasks,
-                         #   page_views (+ drizzle-kit output)
-/lib                     # db client, env, zod validation, auth (scrypt+sessions), mailer,
-                         #   email-templates, boards, blog (+markdown), teams, analytics, realtime, i18n
+                         #   page_views; Phase 3 (0005): clients, packages, subscriptions,
+                         #   credit_ledger, work_items, work_events (+ drizzle-kit output)
+  /apply-0005-shared-hosting.sql  # phpPgAdmin-safe idempotent script to apply 0005 on the host
+/lib                     # db client, env, zod validation, auth (scrypt+sessions+requireRole), mailer,
+                         #   email-templates, boards, blog (+markdown), teams, analytics, realtime, i18n,
+                         #   ledger (work-event projection), rate-limit, workers (hire/temp-password)
 /content
   /pricing.ts            # ← single source of truth for all tiers & prices
   /contact.ts            # ← single source for phone/email/address/logo/socials
   /projects.ts (+ featuredProjects), team.ts (coreTeam + extendedTeam), partners.ts, roles.ts
+  /guilds.ts, rate-card.ts, packages.ts   # Phase 3 guild taxonomy + work rate card + package tiers
 /scripts/create-user.mjs # seed/reset a manager account (no TS build needed)
 /public
 ```

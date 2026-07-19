@@ -22,63 +22,33 @@ export type Member = {
   placeholder?: boolean;
 };
 
-/** The 5 core members. Keep this to the leadership/core team. */
+/** The core/leadership team. Photos live in /public/team (optimized JPEGs). */
 export const coreTeam: Member[] = [
   {
-    name: "Senay [Founder]",
-    role: "Founder & Creative Director",
-    bio: "Sets the creative bar and makes sure every project actually solves the client's problem.",
-    photo: "/team/placeholder-1.svg",
-    link: "",
-    socials: [
-      { platform: "linkedin", href: "https://linkedin.com/" },
-      { platform: "x", href: "https://x.com/" },
-    ],
-    placeholder: true,
+    name: "Bruk M.",
+    role: "General Manager",
+    bio: "Runs the studio day to day — keeps projects on track and clients in the loop from kickoff to launch.",
+    photo: "/team/bruk-m.jpg",
   },
   {
-    name: "[Lead Engineer]",
-    role: "Lead Engineer",
+    name: "Andualem G.",
+    role: "Senior Developer",
     bio: "Builds it properly — fast, accessible, and maintainable long after launch.",
-    photo: "/team/placeholder-2.svg",
-    socials: [{ platform: "github", href: "https://github.com/" }],
-    placeholder: true,
+    photo: "/team/andualem-g.jpg",
   },
   {
-    name: "[Product Designer]",
-    role: "Product Designer",
-    bio: "Shapes the look and the flow so the work feels effortless to use.",
-    photo: "/team/placeholder-3.svg",
-    placeholder: true,
-  },
-  {
-    name: "[Growth Lead]",
-    role: "Growth & Marketing",
+    name: "Dagmawit W.",
+    role: "Marketing Manager",
     bio: "Turns a great build into steady growth across the channels that matter.",
-    photo: "/team/placeholder-4.svg",
-    placeholder: true,
+    // photo pending — the uploaded file duplicated andualem-g's image; avatar shows until then.
   },
   {
-    name: "[Operations Lead]",
-    role: "Operations & Delivery",
-    bio: "Keeps projects on track and clients in the loop from kickoff to launch.",
-    photo: "/team/placeholder-5.svg",
-    placeholder: true,
+    name: "Hailamlak D.",
+    role: "Full Stack Developer",
+    bio: "Ships end to end — from the database to the last pixel of the interface.",
+    photo: "/team/hailamlak-d.jpg",
   },
 ];
 
 /** Everyone else. This list can be long — the page maps over it. */
-export const extendedTeam: Member[] = [
-  {
-    name: "[Frontend Developer]",
-    role: "Frontend Developer",
-    bio: "Turns designs into crisp, responsive interfaces.",
-    placeholder: true,
-  },
-  {
-    name: "[Content Strategist]",
-    role: "Content & Copy",
-    bio: "Writes the words that make the work land.",
-    placeholder: true,
-  },
-];
+export const extendedTeam: Member[] = [];

@@ -32,24 +32,35 @@ export async function GET(req: Request) {
   }
 
   const d = db();
-  const report: Record<string, unknown> = { version: 3 };
+  const report: Record<string, unknown> = { version: 4 };
 
-  // Which database are we actually connected to?
+  // Which database are we actually connected to — and where do unqualified
+  // table names actually resolve? (Drizzle emits unqualified names, so a
+  // "$user" schema shadows public and phpPgAdmin edits the wrong table.)
   try {
     const rows = await d.execute(
-      sql`select current_database() as database, current_user as "user", current_schema() as schema, inet_server_addr()::text as host, current_setting('server_version') as pg_version`,
+      sql`select current_database() as database, current_user as "user", current_schema() as schema, current_setting('search_path') as search_path, inet_server_addr()::text as host, current_setting('server_version') as pg_version`,
     );
     report.connection = rows[0] ?? rows;
   } catch (e) {
     report.connectionError = errInfo(e);
   }
-
-  // Full public-schema table map + owners (owner mismatches are the usual
-  // reason ALTERs fail on shared hosting).
   try {
     const rows = await d.execute(sql`
-      select tablename as table_name, tableowner as owner
-      from pg_tables where schemaname = 'public' order by tablename`);
+      select to_regclass('posts')::text as posts, to_regclass('users')::text as users,
+             to_regclass('clients')::text as clients, to_regclass('sessions')::text as sessions,
+             to_regclass('work_items')::text as work_items, to_regclass('teams')::text as teams`);
+    report.resolves = rows[0] ?? rows;
+  } catch (e) {
+    report.resolvesError = errInfo(e);
+  }
+
+  // ALL schemas + tables + owners (not just public) — the split-brain map.
+  try {
+    const rows = await d.execute(sql`
+      select schemaname as schema, tablename as table_name, tableowner as owner
+      from pg_tables where schemaname not in ('pg_catalog','information_schema')
+      order by schemaname, tablename`);
     report.existingTables = rows;
   } catch (e) {
     report.tableCheckError = errInfo(e);
@@ -64,16 +75,16 @@ export async function GET(req: Request) {
     report.enumCheckError = errInfo(e);
   }
 
-  // Column map for a named table (?columns=posts) — diagnoses missing-column
-  // 500s without guessing.
+  // Column map for a named table (?columns=posts) — resolved the way the APP
+  // sees it (search_path), so it diagnoses the table actually being queried.
   const table = url.searchParams.get("columns");
   if (table && /^[a-z_][a-z0-9_]{0,62}$/.test(table)) {
     try {
       const rows = await d.execute(sql`
-        select column_name, data_type, is_nullable
-        from information_schema.columns
-        where table_schema = 'public' and table_name = ${table}
-        order by ordinal_position`);
+        select a.attname as column_name, format_type(a.atttypid, a.atttypmod) as data_type
+        from pg_attribute a
+        where a.attrelid = to_regclass(${table}) and a.attnum > 0 and not a.attisdropped
+        order by a.attnum`);
       report.columns = { table, rows };
     } catch (e) {
       report.columnsError = errInfo(e);

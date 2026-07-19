@@ -37,20 +37,24 @@ all routes present, prod smoke-tested (public 200, admin routes gated).
       **read-only diagnostics** (kept because the DB is firewalled — it's the only remote window
       into prod DB state; supports `?columns=<table>`).
 
+## Shipped — 2026-07-19
+
+- [x] **Grants root-caused and FIXED — all pages verified clean.** The v1 grant script's
+      `GRANT … ON ALL TABLES` aborted on mixed table ownership, so nothing was granted; admin
+      pages streamed permission errors *behind 200 status codes* (Suspense shell flushes headers
+      before the page queries run — verify by page content, never status alone). v2 per-table
+      script applied → `/blog` live for the first time; blog/clients/work/workspace all render.
+      The posts "missing columns" theory was wrong — columns were fine all along; it was grants.
+
 ## Next steps / outstanding
-
-### 🔴 Blockers
-
-- [ ] **`/blog` 500 — one phpPgAdmin paste.** Prod `posts` is missing newer columns (amharic +
-      cover). Paste `db/manual/2026-07-18_fix_posts_columns.sql` (as `senaycre`). No redeploy needed.
 
 ### 🟡 Hardening / ops
 
 - [ ] **Unset `SETUP_SECRET` in cPanel** (or rotate it) — the mutation routes are gone, but the
       diagnostics route should not share a secret that ever circulated in chat/files.
-- [ ] **Rule for future schema changes:** the app user cannot `ALTER` `senaycre`-owned tables
-      (users, posts, clients, …). Run future migration SQL in **phpPgAdmin as `senaycre`** — the
-      default-privileges grant now auto-extends access to the app user.
+- [ ] **Rule for future schema changes:** run migration SQL in **phpPgAdmin as `senaycre`** —
+      default privileges now auto-grant the app user on new senaycre tables. App-user-owned
+      tables (teams, team_members, team_tasks, page_views) are already fine.
 - [ ] `gh` CLI token expired (401) — re-auth to watch Actions runs (`gh auth login`).
 
 ### 🟢 Content & launch polish

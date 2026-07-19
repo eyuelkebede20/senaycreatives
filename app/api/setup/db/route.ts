@@ -32,7 +32,44 @@ export async function GET(req: Request) {
   }
 
   const d = db();
-  const report: Record<string, unknown> = { version: 4 };
+  const report: Record<string, unknown> = { version: 5 };
+
+  // Reproduce the public-blog queries exactly (?blogprobe=1) — /blog 500s
+  // while /admin/blog works; run both shapes and report the real pg error.
+  if (url.searchParams.get("blogprobe") === "1") {
+    const probes: Record<string, unknown> = {};
+    try {
+      const rows = await d.execute(sql`select has_table_privilege('posts', 'select') as can_select`);
+      probes.privilege = rows[0];
+    } catch (e) {
+      probes.privilege = errInfo(e);
+    }
+    try {
+      const rows = await d.execute(sql`select count(*)::int as n from posts`);
+      probes.count = rows[0];
+    } catch (e) {
+      probes.count = errInfo(e);
+    }
+    try {
+      // adminListPosts shape (works via /admin/blog)
+      const rows = await d.execute(
+        sql`select "id", "slug", "title", "status", "updated_at", "published_at" from "posts" order by "posts"."updated_at" desc limit 3`,
+      );
+      probes.adminShape = { ok: true, rows: rows.length };
+    } catch (e) {
+      probes.adminShape = errInfo(e);
+    }
+    try {
+      // listPublishedPosts shape (500s via /blog) — same param binding as drizzle
+      const rows = await d.execute(
+        sql`select "id", "slug", "title", "excerpt", "title_am", "excerpt_am", "cover", "published_at" from "posts" where "posts"."status" = ${"published"} order by "posts"."published_at" desc limit 3`,
+      );
+      probes.cardShape = { ok: true, rows: rows.length };
+    } catch (e) {
+      probes.cardShape = errInfo(e);
+    }
+    report.blogProbe = probes;
+  }
 
   // Which database are we actually connected to — and where do unqualified
   // table names actually resolve? (Drizzle emits unqualified names, so a

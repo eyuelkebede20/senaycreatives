@@ -101,7 +101,7 @@ export type RecordEventResult = { ok: true } | { ok: false; error: string };
 export async function recordEvent(
   workItemId: string,
   event: WorkEventKind,
-  actorId: string,
+  actorId: string | null,
   payload: Record<string, unknown> = {},
 ): Promise<RecordEventResult> {
   try {

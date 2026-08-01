@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { requireRole } from "@/lib/auth";
 import { workItemsForAssignee, EVENT_LABEL, isOpen } from "@/lib/ledger";
@@ -58,7 +59,9 @@ export default async function WorkspacePage() {
               {items.map((w) => (
                 <tr key={w.id} className="border-t border-line align-top">
                   <td className="px-4 py-3">
-                    <div className="font-medium">{w.title}</div>
+                    <Link href={`/work/${w.id}`} className="font-medium text-brand hover:underline">
+                      {w.title}
+                    </Link>
                     <div className="text-xs text-muted">
                       {w.type} · {w.guild}
                     </div>

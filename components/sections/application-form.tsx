@@ -7,7 +7,7 @@ import { roles } from "@/content/roles";
 import { Field, Input, Textarea, Select, Honeypot } from "@/components/ui/form";
 
 const openRoles = roles.filter((r) => r.open);
-type ErrKey = "name" | "email" | "phone" | "roleSlug" | "portfolioUrl" | "coverNote" | "cv";
+type ErrKey = "name" | "email" | "phone" | "roleSlug" | "experienceLevel" | "expectedSalary" | "availableStartDate" | "portfolioUrl" | "coverNote" | "cv";
 type Errors = Partial<Record<ErrKey, string>>;
 
 export function ApplicationForm() {
@@ -95,9 +95,27 @@ export function ApplicationForm() {
           </Select>
         </Field>
       </div>
-      <Field label="Portfolio / LinkedIn URL" htmlFor="portfolioUrl" error={errors.portfolioUrl}>
-        <Input id="portfolioUrl" name="portfolioUrl" type="url" placeholder="https://…" invalid={!!errors.portfolioUrl} />
-      </Field>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Experience level" htmlFor="experienceLevel" required error={errors.experienceLevel}>
+          <Select id="experienceLevel" name="experienceLevel" defaultValue="" invalid={!!errors.experienceLevel}>
+            <option value="" disabled>Select…</option>
+            <option value="entry">Entry level (0-2 years)</option>
+            <option value="mid">Mid level (2-5 years)</option>
+            <option value="senior">Senior level (5+ years)</option>
+          </Select>
+        </Field>
+        <Field label="Expected Salary" htmlFor="expectedSalary" error={errors.expectedSalary}>
+          <Input id="expectedSalary" name="expectedSalary" placeholder="e.g. 15,000 ETB / mo" invalid={!!errors.expectedSalary} />
+        </Field>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Available Start Date" htmlFor="availableStartDate" error={errors.availableStartDate}>
+          <Input id="availableStartDate" name="availableStartDate" placeholder="e.g. In 2 weeks" invalid={!!errors.availableStartDate} />
+        </Field>
+        <Field label="Portfolio / LinkedIn URL" htmlFor="portfolioUrl" error={errors.portfolioUrl}>
+          <Input id="portfolioUrl" name="portfolioUrl" type="url" placeholder="https://…" invalid={!!errors.portfolioUrl} />
+        </Field>
+      </div>
       <Field label="CV (PDF)" htmlFor="cv" required hint={`PDF only, up to ${MAX_UPLOAD_MB}MB.`} error={errors.cv}>
         <Input id="cv" name="cv" type="file" accept="application/pdf" invalid={!!errors.cv} className="file:mr-3 file:rounded-full file:border-0 file:bg-ink file:px-4 file:py-1.5 file:text-paper" />
       </Field>

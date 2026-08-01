@@ -116,6 +116,9 @@ export const applications = pgTable("applications", {
   email: text("email").notNull(),
   phone: text("phone"),
   roleSlug: text("role_slug").notNull(), // matches content/roles.ts slug
+  experienceLevel: text("experience_level").notNull(),
+  expectedSalary: text("expected_salary"),
+  availableStartDate: text("available_start_date"),
   cvPath: text("cv_path").notNull(), // absolute path under UPLOAD_DIR
   portfolioUrl: text("portfolio_url"),
   coverNote: text("cover_note"),

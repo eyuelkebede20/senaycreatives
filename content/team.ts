@@ -37,6 +37,12 @@ export const coreTeam: Member[] = [
     photo: "/team/andualem-g.jpg",
   },
   {
+    name: "Eyuel K.",
+    role: "Designer",
+    bio: "Designs things for better UI — easily accessable Designs and Systems.",
+    photo: "/team/Eyuel.png",
+  },
+  {
     name: "Dagmawit W.",
     role: "Marketing Manager",
     bio: "Turns a great build into steady growth across the channels that matter.",

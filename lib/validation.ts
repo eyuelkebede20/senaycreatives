@@ -41,6 +41,9 @@ export const applicationSchema = z.object({
   email: z.email("Enter a valid email"),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
   roleSlug: z.string().trim().min(1, "Select a role"),
+  experienceLevel: z.string().trim().min(1, "Please select your experience level"),
+  expectedSalary: z.string().trim().max(60).optional().or(z.literal("")),
+  availableStartDate: z.string().trim().max(60).optional().or(z.literal("")),
   portfolioUrl: z.url("Enter a valid URL").optional().or(z.literal("")),
   coverNote: z.string().trim().max(2000).optional().or(z.literal("")),
   website: z.literal("").optional(), // honeypot

@@ -61,6 +61,11 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1.2fr]">
           <section className="rounded-2xl border border-line bg-paper p-6">
             <h2 className="font-display text-lg font-semibold">Details</h2>
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Row label="Experience Level">{app.experienceLevel}</Row>
+              <Row label="Expected Salary">{app.expectedSalary || "Not specified"}</Row>
+              <Row label="Available Start Date">{app.availableStartDate || "Not specified"}</Row>
+            </dl>
             <dl className="mt-4 grid gap-3 text-sm">
               <Row label="Email">
                 <a href={`mailto:${app.email}`} className="text-brand hover:underline">{app.email}</a>

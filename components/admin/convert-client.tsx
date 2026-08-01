@@ -24,7 +24,7 @@ export function ConvertClient({ submissionId }: { submissionId: string }) {
     });
   }
 
-  if (done) return <span className="text-xs text-success">✓ client</span>;
+  if (done) return <span className="text-xs text-success">✓ link sent</span>;
 
   return (
     <span className="inline-flex flex-col gap-1">
@@ -34,7 +34,7 @@ export function ConvertClient({ submissionId }: { submissionId: string }) {
         className="rounded-full border border-line px-3 py-1 text-xs font-medium hover:border-ink disabled:opacity-50"
         title="Create a client from this inquiry"
       >
-        {pending ? "…" : "→ Client"}
+        {pending ? "…" : "Send Checkout Link"}
       </button>
       {error && <span className="text-xs text-danger">{error}</span>}
     </span>

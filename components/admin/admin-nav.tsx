@@ -26,7 +26,7 @@ export function AdminNav({ isAdmin = false, userName }: { isAdmin?: boolean; use
   return (
     <>
       {/* Mobile Top Bar */}
-      <div className="md:hidden flex items-center justify-between border-b border-line bg-paper px-4 py-4">
+      <div className="md:hidden flex relative z-50 items-center justify-between border-b border-line bg-paper px-4 py-4">
         <Link href="/admin" className="font-display text-sm font-semibold">
           SenayCreatives <span className="text-muted">· Manager</span>
         </Link>
@@ -37,11 +37,10 @@ export function AdminNav({ isAdmin = false, userName }: { isAdmin?: boolean; use
         </button>
       </div>
 
-      {/* Sidebar Navigation */}
       <nav className={cn(
-        "flex flex-col gap-1 border-r border-line bg-paper w-full md:w-64 flex-shrink-0 transition-all",
-        "md:min-h-screen p-4 absolute md:relative z-40 md:translate-x-0 h-[calc(100vh-65px)] md:h-auto overflow-y-auto",
-        isOpen ? "translate-x-0" : "-translate-x-full hidden md:flex"
+        "flex flex-col gap-1 border-r border-line bg-paper md:w-64 flex-shrink-0 transition-transform duration-200 ease-in-out",
+        "fixed inset-y-0 left-0 z-40 w-64 p-4 pt-[80px] md:pt-4 md:relative md:translate-x-0 h-screen overflow-y-auto",
+        isOpen ? "translate-x-0 shadow-2xl md:shadow-none" : "-translate-x-full"
       )}>
         <div className="hidden md:block mb-8 mt-2 px-3">
           <Link href="/admin" className="font-display text-lg font-semibold block">

@@ -1,5 +1,5 @@
 import "server-only";
-import { desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   workItems,
@@ -8,6 +8,7 @@ import {
   clients,
   users,
   guildEnum,
+  teamMembers,
   type WorkItem,
   type WorkEvent,
   type WorkEventKind,
@@ -194,13 +195,23 @@ export async function getWorkItem(id: string): Promise<{
   return { item: { ...row.item, clientName: row.clientName, assigneeName: row.assigneeName }, events };
 }
 
-/** Work items assigned to a given worker — the /work portal projection. */
+/** Work items assigned to a given worker (or their teams) — the /work portal projection. */
 export async function workItemsForAssignee(userId: string): Promise<WorkItemRow[]> {
+  const userTeams = await db()
+    .select({ teamId: teamMembers.teamId })
+    .from(teamMembers)
+    .where(eq(teamMembers.userId, userId));
+  const teamIds = userTeams.map((t) => t.teamId);
+
+  const condition = teamIds.length > 0
+    ? or(eq(workItems.assigneeId, userId), inArray(workItems.teamId, teamIds))
+    : eq(workItems.assigneeId, userId);
+
   const rows = await db()
     .select({ item: workItems, clientName: clients.name })
     .from(workItems)
     .innerJoin(clients, eq(workItems.clientId, clients.id))
-    .where(eq(workItems.assigneeId, userId))
+    .where(condition)
     .orderBy(desc(workItems.createdAt));
   return rows.map((r) => ({ ...r.item, clientName: r.clientName, assigneeName: null }));
 }

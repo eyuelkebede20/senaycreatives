@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, or, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { teams, teamMembers, teamTasks, users, workItems, clients, type TeamTask } from "@/db/schema";
 
@@ -12,7 +12,7 @@ export async function listEmployees(): Promise<Employee[]> {
   return db()
     .select({ id: users.id, name: users.name, email: users.email, role: users.role })
     .from(users)
-    .where(eq(users.disabled, false))
+    .where(or(eq(users.disabled, false), isNull(users.disabled)))
     .orderBy(asc(users.name));
 }
 

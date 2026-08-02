@@ -1,7 +1,7 @@
 import "server-only";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { teams, teamMembers, teamTasks, users, type TeamTask } from "@/db/schema";
+import { teams, teamMembers, teamTasks, users, workItems, clients, type TeamTask } from "@/db/schema";
 
 export type Employee = { id: string; name: string; email: string; role: "manager" | "admin" | "worker" };
 export type Member = { id: string; name: string; email: string };
@@ -40,7 +40,7 @@ export async function listTeamsWithMembers(): Promise<TeamWithMembers[]> {
 export async function getTeam(id: string) {
   const [team] = await db().select().from(teams).where(eq(teams.id, id)).limit(1);
   if (!team) return null;
-  const [members, tasks] = await Promise.all([
+  const [members, tasks, assignedWork] = await Promise.all([
     db()
       .select({ id: users.id, name: users.name, email: users.email })
       .from(teamMembers)
@@ -48,8 +48,20 @@ export async function getTeam(id: string) {
       .where(eq(teamMembers.teamId, id))
       .orderBy(asc(users.name)),
     db().select().from(teamTasks).where(eq(teamTasks.teamId, id)).orderBy(desc(teamTasks.createdAt)),
+    db()
+      .select({
+        id: workItems.id,
+        title: workItems.title,
+        clientName: clients.name,
+        dueAt: workItems.dueAt,
+        currentStatus: workItems.currentStatus,
+      })
+      .from(workItems)
+      .innerJoin(clients, eq(workItems.clientId, clients.id))
+      .where(eq(workItems.teamId, id))
+      .orderBy(desc(workItems.createdAt)),
   ]);
-  return { team, members: members as Member[], tasks: tasks as TeamTask[] };
+  return { team, members: members as Member[], tasks: tasks as TeamTask[], assignedWork };
 }
 
 /** Member emails for a team (used when assigning a task). */

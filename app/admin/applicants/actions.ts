@@ -164,6 +164,8 @@ export async function hireApplicant(id: string, guildInput?: string): Promise<Hi
 
   revalidatePath("/admin/applicants");
   revalidatePath(`/admin/applicants/${id}`);
+  revalidatePath("/admin/teams");
+  revalidatePath("/admin/workspace");
   return { ok: true, username, tempPassword };
 }
 

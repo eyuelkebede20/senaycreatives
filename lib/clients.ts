@@ -2,7 +2,7 @@ import "server-only";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { clients, workItems, creditLedger, submissions, type Client } from "@/db/schema";
-import { sendNotification } from "@/lib/mailer";
+import { sendEmail } from "@/lib/mailer";
 
 export type ClientRow = Client & { balance: number; workItemCount: number };
 
@@ -58,7 +58,7 @@ export async function createClientFromSubmission(
   const checkoutUrl = `${baseUrl}/checkout/${submissionId}`;
 
   try {
-    await sendNotification({
+    await sendEmail({
       to: sub.email,
       subject: `Welcome to SenayCreatives! Complete your subscription`,
       text: `Hi ${sub.name},\n\nWe're thrilled to have you onboard.\n\nPlease complete your subscription by following this secure payment link: \n${checkoutUrl}\n\nOnce paid, your account will be activated and credits will be deposited immediately.\n\nBest,\nThe SenayCreatives Team`,

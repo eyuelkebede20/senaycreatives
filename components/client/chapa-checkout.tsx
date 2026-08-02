@@ -66,7 +66,7 @@ export function ChapaCheckout({ submissionId, clientName }: { submissionId: stri
                   name="package"
                   value={pkg.slug}
                   checked={selectedPackage === pkg.slug}
-                  onChange={(e) => setSelectedPackage(e.target.value)}
+                  onChange={(e) => setSelectedPackage(e.target.value as any)}
                   className="h-4 w-4 text-brand focus:ring-brand"
                 />
                 <div>

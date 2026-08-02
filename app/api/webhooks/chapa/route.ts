@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { clients, subscriptions, creditLedger, submissions, packages } from "@/db/schema";
-import { sendNotification } from "@/lib/mailer";
+import { sendEmail, sendNotification } from "@/lib/mailer";
 
 export async function POST(req: Request) {
   try {
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       
       // Send a welcome email
       try {
-        await sendNotification({
+        await sendEmail({
           to: client.contactEmail,
           subject: "Payment Received - Welcome to SenayCreatives!",
           text: `Hi ${client.name},\n\nYour payment was successful and your subscription is now active with ${grantedCredits} credits deposited to your account.\n\nWe look forward to working with you!\n\nBest,\nThe SenayCreatives Team`,

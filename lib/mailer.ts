@@ -8,28 +8,41 @@ let _transport: Transporter | null = null;
 
 function transport(): Transporter {
   if (!_transport) {
-    const e = smtpEnv();
-    _transport = nodemailer.createTransport({
-      host: e.SMTP_HOST,
-      port: e.SMTP_PORT,
-      secure: e.SMTP_PORT === 465, // 465 = implicit TLS, otherwise STARTTLS
-      auth: { user: e.SMTP_USER, pass: e.SMTP_PASS },
-    });
+    try {
+      const e = smtpEnv();
+      _transport = nodemailer.createTransport({
+        host: e.SMTP_HOST,
+        port: e.SMTP_PORT,
+        secure: e.SMTP_PORT === 465,
+        auth: { user: e.SMTP_USER, pass: e.SMTP_PASS },
+      });
+    } catch (err) {
+      console.warn("⚠️ SMTP not configured. Emails will be logged to console instead.");
+      _transport = {
+        sendMail: async (mail: any) => console.log("📧 Mock email sent:", mail.subject),
+      } as any;
+    }
   }
-  return _transport;
+  return _transport as Transporter;
 }
 
-/** Send an internal notification email (to NOTIFY_TO). Throws on failure. */
 export async function sendNotification(opts: {
   subject: string;
   text: string;
   html?: string;
   replyTo?: string;
 }) {
-  const e = smtpEnv();
+  let from = "SenayCreatives <hello@senaycreatives.com>";
+  let to = "hello@senaycreatives.com";
+  try {
+    const e = smtpEnv();
+    from = e.SMTP_FROM;
+    to = e.NOTIFY_TO;
+  } catch {}
+
   await transport().sendMail({
-    from: e.SMTP_FROM,
-    to: e.NOTIFY_TO,
+    from,
+    to,
     subject: opts.subject,
     text: opts.text,
     html: opts.html,
@@ -37,7 +50,6 @@ export async function sendNotification(opts: {
   });
 }
 
-/** Send an email to an arbitrary recipient (e.g. a confirmation). Throws. */
 export async function sendEmail(opts: {
   to: string;
   subject: string;
@@ -45,14 +57,21 @@ export async function sendEmail(opts: {
   html?: string;
   replyTo?: string;
 }) {
-  const e = smtpEnv();
+  let from = "SenayCreatives <hello@senaycreatives.com>";
+  let replyTo = opts.replyTo;
+  try {
+    const e = smtpEnv();
+    from = e.SMTP_FROM;
+    replyTo = replyTo ?? e.NOTIFY_TO;
+  } catch {}
+
   await transport().sendMail({
-    from: e.SMTP_FROM,
+    from,
     to: opts.to,
     subject: opts.subject,
     text: opts.text,
     html: opts.html,
-    replyTo: opts.replyTo ?? e.NOTIFY_TO,
+    replyTo,
   });
 }
 

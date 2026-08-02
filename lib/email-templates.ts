@@ -165,12 +165,12 @@ export function inquiryReply(name: string, message = "We'd love to learn more ab
 /** 7. Task assigned to a team member (sent to each member on assignment). */
 export function taskAssigned(
   name: string,
-  teamName: string,
+  guildName: string,
   taskTitle: string,
   opts: { description?: string | null; links?: { label: string; url: string }[]; dueDate?: string | null } = {},
 ): EmailContent {
   const body: string[] = [
-    `Your team <strong>${esc(teamName)}</strong> has a new task: <strong>${esc(taskTitle)}</strong>.`,
+    `Your guild <strong>${esc(guildName)}</strong> has a new task: <strong>${esc(taskTitle)}</strong>.`,
   ];
   if (opts.description) body.push(esc(opts.description));
   if (opts.dueDate) body.push(`<strong>Due:</strong> ${esc(opts.dueDate)}`);
@@ -180,8 +180,8 @@ export function taskAssigned(
       .join(" · ");
     body.push(`<strong>Links:</strong> ${items}`);
   }
-  body.push(`Please coordinate with your team and reply to this email with any questions.`);
-  return build(`New task for ${teamName}: ${taskTitle}`, `Hi ${esc(name)}, you have a new task.`, body);
+  body.push(`Please coordinate with your guild and reply to this email with any questions.`);
+  return build(`New task for ${guildName}: ${taskTitle}`, `Hi ${esc(name)}, you have a new task.`, body);
 }
 
 /** 7b. Welcome a newly-hired worker into the collective (with temp credentials). */

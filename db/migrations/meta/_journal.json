@@ -50,6 +50,13 @@
       "when": 1785606755219,
       "tag": "0006_chief_silver_sable",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785695813303,
+      "tag": "0007_steady_wild_child",
+      "breakpoints": true
     }
   ]
 }

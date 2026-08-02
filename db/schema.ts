@@ -141,6 +141,13 @@ export const users = pgTable("users", {
   username: text("username").unique(),
   guild: guildEnum("guild"), // exactly one per worker (idea.md §1.2)
   benchState: benchStateEnum("bench_state"), // bench/active/inactive
+
+  // ── Onboarding & Compliance ──
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+  ndaSignedAt: timestamp("nda_signed_at", { withTimezone: true }),
+  tin: text("tin"),
+  paymentDetails: text("payment_details"),
+  avatarUrl: text("avatar_url"),
 });
 
 /** Server-side sessions. The cookie holds the opaque id; nothing else. */

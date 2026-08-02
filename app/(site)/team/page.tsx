@@ -32,7 +32,7 @@ export default function TeamPage() {
         </div>
 
         {/* Core team — featured cards */}
-        <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-16 grid gap-12 sm:grid-cols-2 md:grid-cols-3">
           {coreTeam.map((member) => (
             <MemberCard key={member.name} member={member} featured />
           ))}
@@ -43,7 +43,7 @@ export default function TeamPage() {
       {extendedTeam.length > 0 && (
         <Section className="pt-16">
           <SectionHeading eyebrow="The wider team" title="Specialists we work with." />
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-12 grid gap-10 sm:grid-cols-2 md:grid-cols-3">
             {extendedTeam.map((member) => (
               <MemberCard key={member.name} member={member} />
             ))}
@@ -58,9 +58,9 @@ export default function TeamPage() {
 
 function MemberCard({ member, featured }: { member: Member; featured?: boolean }) {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col items-center text-center">
       <Avatar member={member} featured={featured} />
-      <h2 className={`mt-4 font-display font-semibold ${featured ? "text-lg" : "text-base"}`}>
+      <h2 className={`mt-5 font-display font-semibold ${featured ? "text-xl" : "text-lg"}`}>
         {member.link ? (
           <a href={member.link} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-brand">
             {member.name}
@@ -69,17 +69,17 @@ function MemberCard({ member, featured }: { member: Member; featured?: boolean }
           member.name
         )}
       </h2>
-      <p className="text-sm font-medium text-brand">{member.role}</p>
-      {member.bio && <p className="mt-2 text-sm text-ink-soft">{member.bio}</p>}
-      <SocialLinks socials={member.socials} className="mt-3" />
+      <p className="mt-1 text-sm font-medium text-brand">{member.role}</p>
+      {member.bio && <p className="mt-3 text-sm text-ink-soft max-w-sm">{member.bio}</p>}
+      <SocialLinks socials={member.socials} className="mt-4 justify-center" />
     </div>
   );
 }
 
 function Avatar({ member, featured }: { member: Member; featured?: boolean }) {
   const showPhoto = member.photo && !member.placeholder;
-  const wrapper = `grid w-full place-items-center overflow-hidden rounded-2xl bg-paper-dim ${
-    featured ? "aspect-square" : "aspect-[4/3]"
+  const wrapper = `grid place-items-center overflow-hidden rounded-full bg-paper-dim shrink-0 ${
+    featured ? "size-40" : "size-32"
   }`;
 
   if (showPhoto) {

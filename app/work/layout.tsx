@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { LogoutButton } from "@/components/admin/logout-button";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireWorkerOnboarded } from "@/lib/auth";
 
 // The worker portal. Gated for workers (and staff, who can preview it). This is
 // intentionally minimal — a read-only view of assigned work. The full portal
@@ -10,7 +10,8 @@ import { requireRole } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export default async function WorkLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireRole("worker", "manager", "admin");
+  await requireRole("worker", "manager", "admin");
+  const user = await requireWorkerOnboarded();
 
   return (
     <div className="flex min-h-screen flex-col">

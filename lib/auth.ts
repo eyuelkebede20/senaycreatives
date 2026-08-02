@@ -106,6 +106,15 @@ export async function requireRole(...roles: UserRole[]): Promise<User> {
   return user;
 }
 
+/** Ensure the worker has completed onboarding. If not, bounce to /onboarding. */
+export async function requireWorkerOnboarded(): Promise<User> {
+  const user = await requireUser();
+  if (user.role === "worker" && !user.onboardedAt) {
+    redirect("/onboarding");
+  }
+  return user;
+}
+
 /** Where a freshly-authenticated user should land, by role. */
 export function homeForRole(role: UserRole): string {
   return role === "worker" ? "/work" : "/admin";

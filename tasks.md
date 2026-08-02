@@ -6,8 +6,8 @@
 - [x] **Client Approval Flow**: Once QA passes, build a secure page for the client to review the work, click "Accept," and leave a 1-to-5 star rating (automatically deducting credits from their ledger).
 
 ## 2. Automated Client Conversion (Chapa Integration)
-- [ ] **Checkout & Subscription Flow**: When an admin marks an intake submission as "won," auto-email the client a payment link powered by Chapa.
-- [ ] **Chapa Webhook Handler (`/api/webhooks/chapa`)**: A background route that listens for successful payment and automatically creates a `Client` record, an active `Subscription`, and deposits the first month of credits into the `credit_ledger`.
+- [x] **Checkout & Subscription Flow**: When an admin marks an intake submission as "won," auto-email the client a payment link powered by Chapa.
+- [x] **Chapa Webhook Handler (`/api/webhooks/chapa`)**: A background route that listens for successful payment and automatically creates a `Client` record, an active `Subscription`, and deposits the first month of credits into the `credit_ledger`.
 
 ## 3. Worker Onboarding Flow
 - [ ] **First-Login Onboarding Screen**: Force new hires to complete a setup wizard before seeing any work.

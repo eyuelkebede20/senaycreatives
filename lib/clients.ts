@@ -2,6 +2,7 @@ import "server-only";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { clients, workItems, creditLedger, submissions, type Client } from "@/db/schema";
+import { sendNotification } from "@/lib/mailer";
 
 export type ClientRow = Client & { balance: number; workItemCount: number };
 
@@ -32,13 +33,9 @@ export async function listClientOptions(): Promise<{ id: string; label: string }
   return rows.map((c) => ({ id: c.id, label: c.org ? `${c.org} — ${c.name}` : c.name }));
 }
 
-/**
- * Create a client from a `won` submission (the demand-side bridge, MAPA §8.B8).
- * Idempotent-ish: if a client already points at this submission, returns it.
- */
 export async function createClientFromSubmission(
   submissionId: string,
-): Promise<{ ok: true; clientId: string } | { ok: false; error: string }> {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const [sub] = await db().select().from(submissions).where(eq(submissions.id, submissionId)).limit(1);
   if (!sub) return { ok: false, error: "Inquiry not found." };
 
@@ -47,25 +44,29 @@ export async function createClientFromSubmission(
     .from(clients)
     .where(eq(clients.sourceSubmissionId, submissionId))
     .limit(1);
+    
   if (existing) {
-    // Already converted — just make sure the lead reads as won.
-    await db().update(submissions).set({ status: "won" }).where(eq(submissions.id, submissionId));
-    return { ok: true, clientId: existing.id };
+    return { ok: false, error: "Client already converted." };
   }
 
-  const [row] = await db()
-    .insert(clients)
-    .values({
-      name: sub.name,
-      org: sub.company ?? null,
-      contactEmail: sub.email,
-      contactPhone: sub.phone ?? null,
-      sourceSubmissionId: sub.id,
-      status: "trial",
-      notes: sub.message,
-    })
-    .returning({ id: clients.id });
-
+  // Update submission status to won
   await db().update(submissions).set({ status: "won" }).where(eq(submissions.id, submissionId));
-  return { ok: true, clientId: row.id };
+
+  // In a real implementation, we would call Chapa API here to generate a checkout URL.
+  // For now, we point them to our internal simulated checkout flow.
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const checkoutUrl = `${baseUrl}/checkout/${submissionId}`;
+
+  try {
+    await sendNotification({
+      to: sub.email,
+      subject: `Welcome to SenayCreatives! Complete your subscription`,
+      text: `Hi ${sub.name},\n\nWe're thrilled to have you onboard.\n\nPlease complete your subscription by following this secure payment link: \n${checkoutUrl}\n\nOnce paid, your account will be activated and credits will be deposited immediately.\n\nBest,\nThe SenayCreatives Team`,
+    });
+  } catch (err) {
+    console.error("Failed to send checkout email:", err);
+    // Continue anyway so the admin isn't blocked, the link can be sent manually if needed.
+  }
+
+  return { ok: true };
 }

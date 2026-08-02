@@ -12,7 +12,7 @@ type Result<T = unknown> = ({ ok: true } & T) | { ok: false; error: string };
 const CLIENT_STATUSES = clientStatusEnum.enumValues;
 
 /** Convert a `won` project inquiry into a client (MAPA §8.B8). */
-export async function convertSubmissionToClient(submissionId: string): Promise<Result<{ clientId: string }>> {
+export async function convertSubmissionToClient(submissionId: string): Promise<Result> {
   await requireRole("manager", "admin");
   const res = await createClientFromSubmission(submissionId);
   revalidatePath("/admin");

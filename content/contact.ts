@@ -22,8 +22,8 @@ export type SocialLink = { platform: SocialPlatform; href: string };
 export const contact = {
   name: "SenayCreatives",
   // Public-facing contact. ← EDIT THESE.
-  phone: "+251 900 000 000", // placeholder — replace with the real number
-  phoneHref: "tel:+251900000000", // digits only, no spaces
+  phone: "+251 926583499", // placeholder — replace with the real number
+  phoneHref: "tel:+251954956250", // digits only, no spaces
   email: "hello@senaycreatives.com",
   address: {
     city: "Addis Ababa",

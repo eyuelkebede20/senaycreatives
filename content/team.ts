@@ -40,7 +40,7 @@ export const coreTeam: Member[] = [
     name: "Eyuel K.",
     role: "Designer",
     bio: "Designs things for better UI — easily accessable Designs and Systems.",
-    photo: "/team/Eyuel.png",
+    photo: "/team/eyuel-k.jpg",
   },
   {
     name: "Dagmawit W.",
@@ -57,4 +57,11 @@ export const coreTeam: Member[] = [
 ];
 
 /** Everyone else. This list can be long — the page maps over it. */
-export const extendedTeam: Member[] = [];
+export const extendedTeam: Member[] = [
+  {
+    name: "Tsegazeab K.",
+    role: "Full Stack Developer",
+    bio: "Develops end-to-end solutions, ensuring robust architecture and seamless user experiences.",
+    photo: "/team/tsegazeab-k.jpg",
+  }
+];

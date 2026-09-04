@@ -1,7 +1,7 @@
 // content/team.ts — the team. Edit these freely; the Team page renders from here.
 //
 // Two groups:
-//   • coreTeam     — the 5 core/leadership members (featured, larger cards)
+//   • coreTeam     — the core/leadership members (featured, larger cards)
 //   • extendedTeam — everyone else; can grow long, rendered by mapping the array
 //
 // Each member: name, role, bio, optional photo, optional `link` (a profile/portfolio
@@ -54,14 +54,13 @@ export const coreTeam: Member[] = [
     bio: "Ships end to end — from the database to the last pixel of the interface.",
     photo: "/team/hailamlak-d.jpg",
   },
-];
-
-/** Everyone else. This list can be long — the page maps over it. */
-export const extendedTeam: Member[] = [
   {
     name: "Tsegazeab K.",
     role: "Full Stack Developer",
     bio: "Develops end-to-end solutions, ensuring robust architecture and seamless user experiences.",
     photo: "/team/tsegazeab-k.jpg",
-  }
+  },
 ];
+
+/** Everyone else. This list can be long — the page maps over it. */
+export const extendedTeam: Member[] = [];

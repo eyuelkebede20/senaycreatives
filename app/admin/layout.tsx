@@ -16,7 +16,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <AdminNav isAdmin={user.role === "admin"} userName={user.name} />
-      <main className="flex-1 w-full overflow-x-hidden md:h-screen md:overflow-y-auto">
+      <main className="flex-1 w-full overflow-x-hidden pb-20 md:pb-0 md:h-screen md:overflow-y-auto">
         {children}
       </main>
     </div>

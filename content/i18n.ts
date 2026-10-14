@@ -21,7 +21,18 @@ type Dict = {
   testimonials: { eyebrow: string; title: string };
   ctaSection: { title: string; body: string };
   footer: { explore: string; services: string; getInTouch: string; tagline: string; privacy: string; built: string; rights: string };
-  blog: { title: string; lead: string; intro: string; searchPh: string; search: string; allPosts: string; empty: string; emptySearch: string; clear: string; results: (n: number, q: string) => string };
+  blog: {
+    title: string;
+    lead: string;
+    intro: string;
+    searchPh: string;
+    search: string;
+    allPosts: string;
+    empty: string;
+    emptySearch: string;
+    clear: string;
+    results: (n: number, q: string) => string;
+  };
 };
 
 const en: Dict = {
@@ -38,15 +49,13 @@ const en: Dict = {
     eyebrow: "Digital agency · Addis Ababa",
     build: "We build",
     words: ["apps people love", "sites that convert", "brands that mean it", "growth you can measure"],
-    subtitle:
-      "App development, full digitalization, marketing, and landing pages — for businesses that want to mean something online.",
+    subtitle: "App development, full digitalization, marketing, and landing pages — for businesses that want to mean something online.",
     see: "See our work",
   },
   services: {
     eyebrow: "What we do",
     title: "One partner, the whole digital problem.",
-    intro:
-      "From a single landing page to a fully digitalized business — pick a productized package or let us scope custom software.",
+    intro: "From a single landing page to a fully digitalized business — pick a productized package or let us scope custom software.",
     see: "See packages",
   },
   featured: {
@@ -95,17 +104,15 @@ const am: Dict = {
   ctaStart: "ፕሮጀክት ይጀምሩ",
   hero: {
     eyebrow: "ዲጂታል ኤጀንሲ · አዲስ አበባ",
-    build: "እኛ እንሰራለን",
+    build: "እንሰራለን",
     words: ["ሰዎች የሚወዱትን አፕ", "ውጤት የሚያመጡ ድረ-ገጾችን", "ትርጉም ያለው ብራንድ", "የሚለካ እድገት"],
-    subtitle:
-      "የአፕ ልማት፣ ሙሉ ዲጂታላይዜሽን፣ ማርኬቲንግ እና ማረፊያ ገጾች — በመስመር ላይ ትርጉም ሊኖራቸው ለሚፈልጉ ንግዶች።",
+    subtitle: "የአፕ ልማት፣ ሙሉ ዲጂታላይዜሽን፣ ማርኬቲንግ እና ማረፊያ ገጾች ፤ በመስመር ላይ ትርጉም ሊኖራቸው ለሚፈልጉ ንግዶች።",
     see: "ስራዎቻችንን ይዩ",
   },
   services: {
     eyebrow: "የምንሰራው",
     title: "አንድ አጋር፣ ሙሉ የዲጂታል መፍትሄ።",
-    intro:
-      "ከአንድ ማረፊያ ገጽ እስከ ሙሉ ዲጂታል ንግድ — ዝግጁ ጥቅል ይምረጡ ወይም ብጁ ሶፍትዌር አብረን እንቅረጽ።",
+    intro: "ከአንድ ማረፊያ ገጽ እስከ ሙሉ ዲጂታል ንግድ ዝግጁ ጥቅል ይምረጡ ወይም ያሻዎትን ሶፍትዌር አብረን እንቅረጽ።",
     see: "ጥቅሎችን ይዩ",
   },
   featured: {
@@ -117,14 +124,14 @@ const am: Dict = {
   testimonials: { eyebrow: "በራሳቸው አንደበት", title: "ከእኛ ጋር መስራት ምን እንደሚመስል።" },
   ctaSection: {
     title: "ሊፈታ የሚገባው ችግር አለዎት?",
-    body: "ምን ማድረግ እንደሚፈልጉ ይንገሩን። ከእቅድ ጋር እንመለሳለን — ጥቅል ወይም ብጁ ዋጋ።",
+    body: "ምን ማድረግ እንደሚፈልጉ ይንገሩን። ከእቅድ ጋር እንመለሳለን",
   },
   footer: {
     explore: "ዳስስ",
     services: "አገልግሎቶች",
     getInTouch: "ያግኙን",
     tagline: "ችግሮችን በዲጂታል መንገድ እንፈታለን።",
-    privacy: "ግላዊነት",
+    privacy: "ግላዊ መረጃ",
     built: "በSenayCreatives የተሰራ።",
     rights: "መብቱ በህግ የተጠበቀ ነው።",
   },

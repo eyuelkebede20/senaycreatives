@@ -90,6 +90,19 @@ export const postStatusEnum = pgEnum("post_status", ["draft", "published"]);
 // Team task progress.
 export const teamTaskStatusEnum = pgEnum("team_task_status", ["todo", "in_progress", "blocked", "done"]);
 
+// Contracts & Mail Management
+export const contractDocTypeEnum = pgEnum("contract_doc_type", [
+  "blank",
+  "nda",
+  "client_contract",
+  "employment_offer",
+  "contractor_agreement",
+  "experience_letter",
+  "proposal",
+]);
+export const contractFormatEnum = pgEnum("contract_format", ["a4", "email"]);
+export const contractStatusEnum = pgEnum("contract_status", ["draft", "sent", "printed"]);
+
 // ── Tables ─────────────────────────────────────────────────────────────────
 
 /** "Start a project" client intake form. */
@@ -372,6 +385,39 @@ export const creditLedger = pgTable("credit_ledger", {
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
 });
 
+/** Official company letters, NDAs, employee agreements, and client contracts. */
+export const contracts = pgTable("contracts", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  title: text("title").notNull(),
+  refNumber: text("ref_number"),
+  docType: contractDocTypeEnum("doc_type").default("blank").notNull(),
+  format: contractFormatEnum("format").default("a4").notNull(),
+  status: contractStatusEnum("status").default("draft").notNull(),
+
+  recipientType: text("recipient_type").default("custom").notNull(),
+  recipientId: text("recipient_id"),
+  recipientName: text("recipient_name").notNull(),
+  recipientEmail: text("recipient_email"),
+  recipientOrg: text("recipient_org"),
+  recipientAddress: text("recipient_address"),
+  recipientPhone: text("recipient_phone"),
+
+  date: text("date").notNull(),
+  subject: text("subject"),
+  salutation: text("salutation"),
+  bodyMarkdown: text("body_markdown").notNull(),
+
+  signerName: text("signer_name"),
+  signerTitle: text("signer_title"),
+  includeSignatureLine: boolean("include_signature_line").default(true).notNull(),
+
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  sentTo: text("sent_to"),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+});
+
 export type Submission = typeof submissions.$inferSelect;
 export type NewSubmission = typeof submissions.$inferInsert;
 export type Application = typeof applications.$inferSelect;
@@ -398,7 +444,12 @@ export type WorkItem = typeof workItems.$inferSelect;
 export type NewWorkItem = typeof workItems.$inferInsert;
 export type WorkEvent = typeof workEvents.$inferSelect;
 export type CreditLedgerRow = typeof creditLedger.$inferSelect;
+export type Contract = typeof contracts.$inferSelect;
+export type NewContract = typeof contracts.$inferInsert;
 
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
 export type Guild = (typeof guildEnum.enumValues)[number];
 export type WorkEventKind = (typeof workEventEnum.enumValues)[number];
+export type ContractDocType = (typeof contractDocTypeEnum.enumValues)[number];
+export type ContractFormatKind = (typeof contractFormatEnum.enumValues)[number];
+export type ContractStatusKind = (typeof contractStatusEnum.enumValues)[number];

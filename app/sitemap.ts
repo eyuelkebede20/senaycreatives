@@ -12,12 +12,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticEntries: MetadataRoute.Sitemap = routes.map((path) => ({
     url: `${SITE_URL}${path}`,
+    lastModified: new Date(),
     changeFrequency: "monthly",
     priority: path === "" ? 1 : 0.7,
   }));
 
   const projectEntries: MetadataRoute.Sitemap = projects.map((p) => ({
     url: `${SITE_URL}/projects/${p.slug}`,
+    lastModified: new Date(),
     changeFrequency: "yearly",
     priority: 0.6,
   }));
@@ -28,6 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const slugs = await publishedSlugs();
     blogEntries = slugs.map((slug) => ({
       url: `${SITE_URL}/blog/${slug}`,
+      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.6,
     }));

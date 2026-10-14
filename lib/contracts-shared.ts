@@ -381,17 +381,15 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   }
   .page {
     width: 210mm;
-    height: 297mm;
-    max-height: 297mm;
+    min-height: 297mm;
     margin: 8mm auto;
     background: #ffffff;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-    page-break-inside: avoid;
-    page-break-after: avoid;
+    position: relative;
+    overflow: visible;
   }
   .ico {
     width: 3.4mm;
@@ -407,13 +405,50 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   }
   .row { display: flex; align-items: center; gap: 1.8mm; }
 
+  /* TABLE WRAPPER FOR CONTINUOUS MULTI-PAGE PRINTING */
+  table.lh-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    margin: 0;
+    padding: 0;
+  }
+  table.lh-print-table > thead,
+  table.lh-print-table > tfoot,
+  table.lh-print-table > tbody {
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+  table.lh-print-table > thead > tr > td,
+  table.lh-print-table > tfoot > tr > td,
+  table.lh-print-table > tbody > tr > td {
+    padding: 0;
+    margin: 0;
+    border: none;
+    vertical-align: top;
+  }
+
+  .lh-header-space {
+    height: 28mm;
+    width: 100%;
+  }
+  .lh-footer-space {
+    height: 18mm;
+    width: 100%;
+  }
+
   /* HEADER */
-  .lh-header {
-    padding: 10mm 18mm 4.5mm;
+  .lh-header-print {
+    box-sizing: border-box;
+    width: 100%;
+    height: 28mm;
+    padding: 8mm 18mm 3mm;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    border-bottom: 1mm solid ${BRAND_TOKENS.ink};
+    border-bottom: 0.8mm solid ${BRAND_TOKENS.ink};
+    background: #ffffff;
     flex-shrink: 0;
   }
   .lh-logo {
@@ -459,14 +494,14 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   /* BODY */
   .lh-body {
     flex: 1 1 auto;
-    padding: 7mm 18mm 4mm;
+    padding: 6mm 18mm 4mm;
     font-size: 9.8pt;
     line-height: 1.5;
     color: ${BRAND_TOKENS.ink};
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    overflow: hidden;
+    overflow: visible;
   }
   .lh-body p {
     margin-bottom: 2.8mm;
@@ -556,30 +591,68 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   }
 
   /* FOOTER */
-  .lh-footer {
+  .lh-footer-print {
+    box-sizing: border-box;
+    width: 100%;
+    height: 18mm;
     background: ${BRAND_TOKENS.ink};
     color: #d9e0dc;
-    padding: 4.5mm 18mm;
+    padding: 4mm 18mm;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 8mm;
     font-size: 8pt;
     line-height: 1.5;
-    margin-top: auto;
     flex-shrink: 0;
-    page-break-inside: avoid;
-    page-break-after: avoid;
   }
-  .lh-footer strong {
+  .lh-footer-print strong {
     color: #ffffff;
     font-size: 9pt;
     letter-spacing: -0.01em;
   }
-  .lh-footer .ico { color: #d9e0dc; }
-  .lh-footer .right .row { justify-content: flex-end; }
-  .lh-footer a { color: inherit; text-decoration: none; }
+  .lh-footer-print .ico { color: #d9e0dc; }
+  .lh-footer-print .right .row { justify-content: flex-end; }
+  .lh-footer-print a { color: inherit; text-decoration: none; }
 
+  /* SCREEN PRESENTATION */
+  @media screen {
+    .lh-header-print {
+      position: static;
+    }
+    .lh-footer-print {
+      position: static;
+      margin-top: auto;
+    }
+    .lh-header-space,
+    .lh-footer-space {
+      display: none;
+    }
+    table.lh-print-table {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    table.lh-print-table tbody {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    table.lh-print-table tbody tr,
+    table.lh-print-table tbody td {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .lh-body {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      overflow: visible;
+    }
+  }
+
+  /* PRINT PRESENTATION (Multi-page repeating headers & footers) */
   @media print {
     @page {
       size: A4 portrait;
@@ -587,29 +660,107 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
     }
     html, body {
       width: 210mm !important;
-      height: 297mm !important;
-      max-height: 297mm !important;
       margin: 0 !important;
       padding: 0 !important;
       background: #ffffff !important;
-      overflow: hidden !important;
+      overflow: visible !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
     .page {
       width: 210mm !important;
-      height: 296mm !important; /* 296mm leaves 1mm buffer so it NEVER spills onto page 2 */
-      max-height: 296mm !important;
-      margin: 0 auto !important;
+      min-height: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
       box-shadow: none !important;
-      overflow: hidden !important;
-      page-break-inside: avoid !important;
-      page-break-before: avoid !important;
-      page-break-after: avoid !important;
+      border: none !important;
+      display: block !important;
+      overflow: visible !important;
+      page-break-after: auto !important;
     }
-    .lh-footer {
+
+    /* Fixed Header repeats at the top of EVERY printed page */
+    .lh-header-print {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: 210mm !important;
+      height: 28mm !important;
+      box-sizing: border-box !important;
+      background: #ffffff !important;
+      z-index: 9999 !important;
+      display: flex !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Fixed Footer repeats at the bottom of EVERY printed page */
+    .lh-footer-print {
+      position: fixed !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: 210mm !important;
+      height: 18mm !important;
+      box-sizing: border-box !important;
+      background: ${BRAND_TOKENS.ink} !important;
+      color: #d9e0dc !important;
+      z-index: 9999 !important;
+      display: flex !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Table layout manages continuous paged flow without clipping text */
+    table.lh-print-table {
+      width: 210mm !important;
+      display: table !important;
+    }
+    table.lh-print-table > thead {
+      display: table-header-group !important;
+    }
+    table.lh-print-table > tfoot {
+      display: table-footer-group !important;
+    }
+    table.lh-print-table > tbody {
+      display: table-row-group !important;
+    }
+    table.lh-print-table > tbody > tr > td {
+      display: table-cell !important;
+    }
+
+    .lh-header-space {
+      display: block !important;
+      height: 28mm !important;
+      width: 100% !important;
+    }
+    .lh-footer-space {
+      display: block !important;
+      height: 18mm !important;
+      width: 100% !important;
+    }
+
+    .lh-body {
+      display: block !important;
+      overflow: visible !important;
+    }
+
+    /* Prevent awkward cuts inside elements */
+    h2, h3, .meta-bar, .subject, .salutation, .signoff, .sig-line, .recipient, hr {
       page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    h2, h3 {
       page-break-after: avoid !important;
+      break-after: avoid !important;
+    }
+    p, li {
+      page-break-inside: auto;
+      orphans: 2;
+      widows: 2;
     }
   }
 </style>
@@ -627,8 +778,8 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
 
 <div class="page">
 
-  <!-- HEADER -->
-  <div class="lh-header">
+  <!-- HEADER (Repeats on every printed page via position: fixed in print) -->
+  <div class="lh-header-print">
     <div class="lh-logo">
       <div class="logo-badge">
         <img src="${BRAND_TOKENS.logoUrl}" alt="SenayCreatives logo" onerror="this.style.display='none'">
@@ -643,44 +794,67 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
     </div>
   </div>
 
-  <!-- LETTER BODY -->
-  <div class="lh-body">
-    <div class="meta-bar">
-      <div class="date">${dateFormatted}</div>
-      ${doc.refNumber ? `<div class="meta-ref">Ref: ${doc.refNumber}</div>` : ""}
-    </div>
+  <!-- PAGINATED TABLE WRAPPER (Flows naturally across multiple pages) -->
+  <table class="lh-print-table">
+    <thead>
+      <tr>
+        <td>
+          <div class="lh-header-space"></div>
+        </td>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <!-- LETTER BODY -->
+          <div class="lh-body">
+            <div class="meta-bar">
+              <div class="date">${dateFormatted}</div>
+              ${doc.refNumber ? `<div class="meta-ref">Ref: ${doc.refNumber}</div>` : ""}
+            </div>
 
-    <div class="recipient">
-      <strong>${doc.recipientName || "Valued Recipient"}</strong><br>
-      ${doc.recipientOrg ? `${doc.recipientOrg}<br>` : ""}
-      ${doc.recipientAddress ? `${doc.recipientAddress}<br>` : ""}
-      ${doc.recipientEmail ? `${doc.recipientEmail}` : ""}
-    </div>
+            <div class="recipient">
+              <strong>${doc.recipientName || "Valued Recipient"}</strong><br>
+              ${doc.recipientOrg ? `${doc.recipientOrg}<br>` : ""}
+              ${doc.recipientAddress ? `${doc.recipientAddress}<br>` : ""}
+              ${doc.recipientEmail ? `${doc.recipientEmail}` : ""}
+            </div>
 
-    ${doc.subject ? `<div class="subject">${doc.subject}</div>` : ""}
-    ${doc.salutation ? `<div class="salutation">${doc.salutation}</div>` : ""}
+            ${doc.subject ? `<div class="subject">${doc.subject}</div>` : ""}
+            ${doc.salutation ? `<div class="salutation">${doc.salutation}</div>` : ""}
 
-    ${bodyHtml}
+            ${bodyHtml}
 
-    ${!doc.bodyMarkdown.includes("PARTY A") ? `
-    <div class="signoff">
-      <p style="margin-bottom: 2mm;">Sincerely,</p>
-      <div class="signature-space">
-        ${doc.includeSignatureLine ? '<div class="sig-line"></div>' : ""}
-      </div>
-      <div class="signer-name">${doc.signerName || "Eyuel Kebede"}</div>
-      <div class="signer-title">${doc.signerTitle || "Managing Director, Senay Creatives"}</div>
-      ${doc.signerEmail || doc.signerPhone ? `
-        <div style="font-size: 8.5pt; color: ${BRAND_TOKENS.muted}; margin-top: 1.5mm;">
-          ${[doc.signerEmail, doc.signerPhone].filter(Boolean).join(" &nbsp;·&nbsp; ")}
-        </div>
-      ` : ""}
-    </div>
-    ` : ""}
-  </div>
+            ${!doc.bodyMarkdown.includes("PARTY A") ? `
+            <div class="signoff">
+              <p style="margin-bottom: 2mm;">Sincerely,</p>
+              <div class="signature-space">
+                ${doc.includeSignatureLine ? '<div class="sig-line"></div>' : ""}
+              </div>
+              <div class="signer-name">${doc.signerName || "Eyuel Kebede"}</div>
+              <div class="signer-title">${doc.signerTitle || "Managing Director, Senay Creatives"}</div>
+              ${doc.signerEmail || doc.signerPhone ? `
+                <div style="font-size: 8.5pt; color: ${BRAND_TOKENS.muted}; margin-top: 1.5mm;">
+                  ${[doc.signerEmail, doc.signerPhone].filter(Boolean).join(" &nbsp;·&nbsp; ")}
+                </div>
+              ` : ""}
+            </div>
+            ` : ""}
+          </div>
+        </td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td>
+          <div class="lh-footer-space"></div>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
 
-  <!-- FOOTER -->
-  <div class="lh-footer">
+  <!-- FOOTER (Repeats on every printed page via position: fixed in print) -->
+  <div class="lh-footer-print">
     <div>
       <strong>Senay Creatives</strong>
       <div class="row"><svg class="ico"><use href="#i-pin"/></svg><span>${BRAND_TOKENS.city}</span></div>

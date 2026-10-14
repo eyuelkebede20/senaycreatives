@@ -72,7 +72,7 @@ export const BRAND_TOKENS = {
   white: "#ffffff",
   phonePrimary: "+251 976 105 215",
   phoneSecondary: "+251 954 956 260",
-  email: contact.email || "hello@senaycreatives.com",
+  email: contact.email || "info@senaycreatives.com",
   city: `${contact.address.city}, ${contact.address.country}`,
   website: "senaycreatives.com",
   logoUrl: `${SITE_URL}/logo-mark.png`,

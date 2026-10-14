@@ -24,7 +24,7 @@ export const contact = {
   // Public-facing contact. ← EDIT THESE.
   phone: "+251 926583499", // placeholder — replace with the real number
   phoneHref: "tel:+251954956250", // digits only, no spaces
-  email: "hello@senaycreatives.com",
+  email: "info@senaycreatives.com",
   address: {
     city: "Addis Ababa",
     country: "Ethiopia",

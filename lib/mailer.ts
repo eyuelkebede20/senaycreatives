@@ -32,8 +32,8 @@ export async function sendNotification(opts: {
   html?: string;
   replyTo?: string;
 }) {
-  let from = "SenayCreatives <hello@senaycreatives.com>";
-  let to = "hello@senaycreatives.com";
+  let from = "SenayCreatives <info@senaycreatives.com>";
+  let to = "info@senaycreatives.com";
   try {
     const e = smtpEnv();
     from = e.SMTP_FROM;
@@ -57,7 +57,7 @@ export async function sendEmail(opts: {
   html?: string;
   replyTo?: string;
 }) {
-  let from = "SenayCreatives <hello@senaycreatives.com>";
+  let from = "SenayCreatives <info@senaycreatives.com>";
   let replyTo = opts.replyTo;
   try {
     const e = smtpEnv();

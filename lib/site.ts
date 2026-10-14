@@ -7,7 +7,7 @@ export const site = {
     "SenayCreatives is a digital agency in Addis Ababa — app development, full digitalization, digital marketing, custom automation with AI, and landing pages.",
   // Canonical production origin. Override at build with NEXT_PUBLIC_SITE_URL.
   url: "https://senaycreatives.com",
-  email: "hello@senaycreatives.com",
+  email: "info@senaycreatives.com",
   location: "Addis Ababa, Ethiopia",
 
   // Primary navigation (header + footer).

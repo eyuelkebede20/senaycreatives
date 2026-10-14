@@ -36,9 +36,12 @@ async function ensureStoreFile(): Promise<ContractDocument[]> {
         recipientAddress: "Bole Medhanialem, Addis Ababa",
         recipientPhone: "+251 911 234 567",
         date: "14 October 2026",
-        subject: "Subject: Mutual Non-Disclosure & Confidentiality Agreement",
+        subject: "Subject: Mutual Non-Disclosure Agreement (NDA)",
         salutation: "Dear Abebe,",
-        bodyMarkdown: TEMPLATES.nda.defaultBody,
+        bodyMarkdown: TEMPLATES.nda.defaultBody
+          .replace("[Recipient Name]", "Abebe Tadesse")
+          .replace("[Recipient Org]", "FinTech Alpha Solutions")
+          .replace("[Scope of Services]", "Full-stack mobile app & payment integration"),
         signerName: "Eyuel Kebede",
         signerTitle: "Managing Director, Senay Creatives",
         includeSignatureLine: true,

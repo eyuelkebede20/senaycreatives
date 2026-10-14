@@ -119,34 +119,51 @@ Should you have any questions or require additional clarification, please feel f
     defaultSignerTitle: "Managing Director, Senay Creatives",
   },
   nda: {
-    name: "Non-Disclosure Agreement (NDA)",
-    description: "Confidentiality and proprietary rights agreement for clients, partners, or employees.",
-    defaultSubject: "Subject: Mutual Non-Disclosure & Confidentiality Agreement",
+    name: "Mutual NDA (Confidentiality)",
+    description: "Official Mutual Non-Disclosure Agreement under Ethiopian law for technology, creative, and digital services.",
+    defaultSubject: "Subject: Mutual Non-Disclosure Agreement (NDA)",
     defaultSalutation: "Dear [Recipient Name],",
-    defaultBody: `This Non-Disclosure Agreement ("Agreement") is entered into as of the date written above, by and between Senay Creatives ("Disclosing Party") and the Recipient named above ("Receiving Party").
+    defaultBody: `This Mutual Non-Disclosure Agreement (“Agreement”) is entered into between Senay Creatives (“Party A”) and the individual or organization identified below (“Party B”), effective from the date of the last signature.
 
-1. PURPOSE & CONFIDENTIAL INFORMATION
-The parties intend to explore or engage in business discussions concerning digital technology, design, software architecture, marketing strategies, and related services. "Confidential Information" refers to any proprietary technical, commercial, organizational, customer, or product data shared between the parties, whether in writing, oral, or electronic format.
+1. PURPOSE
+The Parties may exchange confidential information while discussing or providing services, including software development, website and application development, digital technology solutions, digital marketing, social media management, branding, design, content creation, marketing strategy, business growth support, and other services offered by Senay Creatives.
 
-2. OBLIGATIONS OF RECEIVING PARTY
-The Receiving Party agrees to:
-a) Hold and maintain the Confidential Information in strictest confidence using at least reasonable care;
-b) Restrict disclosure solely to employees or advisors with a legitimate need to know who are bound by confidentiality obligations no less restrictive than this Agreement;
-c) Not reproduce, reverse-engineer, publish, or disclose any portion to third parties without prior written consent from Senay Creatives;
-d) Refrain from using any Confidential Information for competitive or unauthorized commercial purposes.
+2. CONFIDENTIAL INFORMATION
+“Confidential Information” includes any non-public business, technical, financial, creative, strategic, or customer information shared by either Party, including passwords, account access, customer records, marketing plans, designs, source code, business documents, and project materials.
 
-3. EXCLUSIONS
-Confidential Information does not include information that:
-a) Is or becomes publicly known through no breach of this Agreement;
-b) Was already in the lawful possession of the Receiving Party prior to disclosure;
-c) Is independently developed without reference to the Disclosing Party's Confidential Information.
+3. CONFIDENTIALITY OBLIGATIONS
+Each Party agrees to protect the other Party’s Confidential Information, use it only for the intended business relationship, and not disclose it to unauthorized third parties without prior written consent. Access may be given to employees, contractors, or professional advisers who need the information and are bound by appropriate confidentiality obligations. Each Party shall take reasonable steps to prevent unauthorized use or disclosure.
 
-4. TERM & RETURN OF MATERIALS
-This Agreement and the confidentiality obligations herein shall remain effective for a period of two (2) years from disclosure. Upon written request, all documents, prototypes, and digital copies must be promptly returned or certified destroyed.
+4. EXCEPTIONS
+Confidentiality obligations do not apply to information that becomes publicly available without a breach of this Agreement, was lawfully known before disclosure, is lawfully received from a third party without confidentiality restrictions, or is independently developed without using the other Party’s Confidential Information.
 
-5. GOVERNING LAW & DISPUTE RESOLUTION
-This Agreement is governed by and construed in accordance with the laws of the Federal Democratic Republic of Ethiopia. Any disputes shall be submitted to the competent courts of Addis Ababa.`,
-    defaultSignerTitle: "Legal & Operations, Senay Creatives",
+If disclosure is legally required, the receiving Party may disclose only what is required by law and shall provide prior notice where legally permitted.
+
+5. DURATION AND RETURN OF INFORMATION
+This Agreement applies to confidential information disclosed in connection with the Parties’ business relationship, including earlier disclosures made in confidence. Confidentiality obligations shall continue for two (2) years from the date of each disclosure. Information protected as a trade secret shall remain protected for as long as it qualifies for such protection under applicable law.
+
+Upon written request, each Party shall return or securely destroy the other Party’s Confidential Information, except where retention is legally required or the information remains in routine backup systems.
+
+6. OWNERSHIP AND GOVERNING LAW
+Confidential Information remains the property of the Party that disclosed it. This Agreement does not transfer intellectual property ownership or grant rights to use the other Party’s intellectual property beyond the intended business purpose. Ownership of project deliverables shall be agreed separately in writing where necessary.
+
+This Agreement shall be governed by the laws of the Federal Democratic Republic of Ethiopia, and disputes shall be submitted to the competent courts of Addis Ababa, subject to applicable law.
+
+SERVICE DETAILS AND SIGNATURES
+Service(s) to be provided by Senay Creatives:
+• Software engineering, technology solutions, digital marketing, branding, content creation, and business growth support.
+
+PARTY A — SENAY CREATIVES
+Representative’s Name: Eyuel Kebede
+Position: Managing Director
+Signature: ______________________    Date: ____________
+
+PARTY B — CLIENT / OTHER PARTY
+Full Name: [Recipient Name]
+Business Name (if applicable): [Recipient Org]
+Service(s) to be provided: [Scope of Services]
+Signature: ______________________    Date: ____________`,
+    defaultSignerTitle: "Managing Director, Senay Creatives",
   },
   client_contract: {
     name: "Client Service Agreement",
@@ -282,6 +299,16 @@ export function formatBodyToHtml(markdown: string): string {
       continue;
     }
 
+    // Dividers (---, ———, ⸻⸻)
+    if (trimmed === "---" || trimmed === "———" || trimmed === "⸻⸻" || trimmed === "⸻" || /^[-—⸻]{3,}$/.test(trimmed)) {
+      if (inList) {
+        htmlParts.push("</ul>");
+        inList = false;
+      }
+      htmlParts.push(`<hr style="border: 0; border-top: 1px solid ${BRAND_TOKENS.line}; margin: 8px 0;" />`);
+      continue;
+    }
+
     // Bold formatting **text**
     const formatted = trimmed
       .replace(/&/g, "&amp;")
@@ -293,11 +320,11 @@ export function formatBodyToHtml(markdown: string): string {
     // Bullet lists
     if (trimmed.startsWith("• ") || trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
       if (!inList) {
-        htmlParts.push('<ul style="margin: 0 0 12px 20px; padding: 0;">');
+        htmlParts.push('<ul style="margin: 0 0 8px 18px; padding: 0;">');
         inList = true;
       }
       const itemContent = formatted.replace(/^([•\-\*]\s*)/, "");
-      htmlParts.push(`<li style="margin-bottom: 6px; line-height: 1.6;">${itemContent}</li>`);
+      htmlParts.push(`<li style="margin-bottom: 4px; line-height: 1.45;">${itemContent}</li>`);
       continue;
     }
 
@@ -306,15 +333,15 @@ export function formatBodyToHtml(markdown: string): string {
       inList = false;
     }
 
-    // Section headers like "1. PURPOSE" or "### Heading"
+    // Section headers like "1. PURPOSE" or "### Heading" or "PARTY A — SENAY CREATIVES"
     if (trimmed.startsWith("### ")) {
-      htmlParts.push(`<h3 style="font-size: 14pt; font-weight: 700; margin: 16px 0 8px; color: ${BRAND_TOKENS.ink};">${formatted.replace(/^###\s*/, "")}</h3>`);
+      htmlParts.push(`<h3 style="font-size: 10.5pt; font-weight: 700; margin: 10px 0 4px; color: ${BRAND_TOKENS.ink}; text-transform: uppercase;">${formatted.replace(/^###\s*/, "")}</h3>`);
     } else if (trimmed.startsWith("## ")) {
-      htmlParts.push(`<h2 style="font-size: 16pt; font-weight: 700; margin: 18px 0 8px; color: ${BRAND_TOKENS.ink};">${formatted.replace(/^##\s*/, "")}</h2>`);
-    } else if (/^[0-9]+\.\s+[A-Z\s&]+$/.test(trimmed)) {
-      htmlParts.push(`<p style="font-weight: 700; font-size: 11pt; margin: 14px 0 4px; color: ${BRAND_TOKENS.ink}; letter-spacing: -0.01em;">${formatted}</p>`);
+      htmlParts.push(`<h2 style="font-size: 11.5pt; font-weight: 700; margin: 12px 0 5px; color: ${BRAND_TOKENS.ink};">${formatted.replace(/^##\s*/, "")}</h2>`);
+    } else if (/^[0-9]+\.\s+[A-Z\s&()\/—–-]+$/.test(trimmed) || /^(SERVICE DETAILS|PARTY A|PARTY B)(\s+[—–-].*)?$/i.test(trimmed)) {
+      htmlParts.push(`<p style="font-weight: 700; font-size: 9.8pt; margin: 9px 0 3px; color: ${BRAND_TOKENS.ink}; letter-spacing: -0.01em; text-transform: uppercase;">${formatted}</p>`);
     } else {
-      htmlParts.push(`<p style="margin: 0 0 10px 0; line-height: 1.6;">${formatted}</p>`);
+      htmlParts.push(`<p style="margin: 0 0 6px 0; line-height: 1.48;">${formatted}</p>`);
     }
   }
 
@@ -635,6 +662,7 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
 
     ${bodyHtml}
 
+    ${!doc.bodyMarkdown.includes("PARTY A") ? `
     <div class="signoff">
       <p style="margin-bottom: 2mm;">Sincerely,</p>
       <div class="signature-space">
@@ -648,6 +676,7 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
         </div>
       ` : ""}
     </div>
+    ` : ""}
   </div>
 
   <!-- FOOTER -->
@@ -775,6 +804,7 @@ export function renderEmailHtml(doc: ContractDocument, opts?: { signingUrl?: str
                 : ""
             }
 
+            ${!doc.bodyMarkdown.includes("PARTY A") ? `
             <div style="margin-top:28px; padding-top:16px; border-top:1px solid ${BRAND_TOKENS.line};">
               <p style="margin:0 0 4px 0; font-size:14px; color:${BRAND_TOKENS.muted};">Best regards,</p>
               <p style="margin:0; font-weight:700; font-size:15px; color:${BRAND_TOKENS.ink};">${doc.signerName || "Eyuel Kebede"}</p>
@@ -785,6 +815,7 @@ export function renderEmailHtml(doc: ContractDocument, opts?: { signingUrl?: str
                 </p>
               ` : ""}
             </div>
+            ` : ""}
           </td>
         </tr>
 

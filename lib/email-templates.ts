@@ -204,3 +204,62 @@ export function workerWelcome(
 export function genericMessage(subject: string, headingHtml: string, bodyHtml: string[]): EmailContent {
   return build(subject, headingHtml, bodyHtml);
 }
+
+/** 9. Signing invitation — sent to the recipient with a unique "Sign Here" link. */
+export function signingInvitation(
+  recipientName: string,
+  documentTitle: string,
+  senderName: string,
+  senderTitle: string,
+  signingUrl: string,
+  expiresInDays = 7,
+): EmailContent {
+  const n = esc(recipientName);
+  const d = esc(documentTitle);
+  const sn = esc(senderName);
+  const st = esc(senderTitle);
+  const url = esc(signingUrl);
+  return build(
+    `Please sign: ${documentTitle}`,
+    `Your signature is requested, ${n}.`,
+    [
+      `<strong>${sn}</strong> (${st}) has sent you <strong>${d}</strong> for your electronic signature.`,
+      `Please review the document carefully and sign using the button below. Your signature is legally binding.`,
+      `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+        <tr>
+          <td style="background-color:#15140f; border-radius:10px; padding:0;">
+            <a href="${url}" style="display:inline-block; padding:14px 28px; font-size:15px; font-weight:700; color:#ffffff; text-decoration:none; letter-spacing:-0.01em;">
+              ✍&nbsp; Sign Document
+            </a>
+          </td>
+        </tr>
+      </table>`,
+      `If the button above does not work, copy and paste this link into your browser:<br>
+      <a href="${url}" style="color:#15140f; word-break:break-all;">${url}</a>`,
+      `This signing link will expire in <strong>${expiresInDays} days</strong>. If you have questions, reply to this email.`,
+    ],
+  );
+}
+
+/** 10. Signing confirmation — sent to the recipient once they have signed. */
+export function signingConfirmation(
+  recipientName: string,
+  documentTitle: string,
+  signedAt: string,
+): EmailContent {
+  const n = esc(recipientName);
+  const d = esc(documentTitle);
+  const ts = esc(new Date(signedAt).toLocaleString("en-GB", {
+    day: "numeric", month: "long", year: "numeric",
+    hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+  }));
+  return build(
+    `Signature confirmed — ${documentTitle}`,
+    `Thank you for signing, ${n}.`,
+    [
+      `Your electronic signature on <strong>${d}</strong> has been received and recorded.`,
+      `<strong>Signed:</strong> ${ts}`,
+      `A copy of this confirmation is for your records. If you did not sign this document or believe this was done in error, please reply to this email immediately.`,
+    ],
+  );
+}

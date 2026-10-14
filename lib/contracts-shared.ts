@@ -11,7 +11,7 @@ export type ContractDocType =
   | "proposal";
 
 export type ContractFormat = "a4" | "email";
-export type ContractStatus = "draft" | "sent" | "printed";
+export type ContractStatus = "draft" | "sent" | "printed" | "signed";
 export type RecipientType = "client" | "employee" | "applicant" | "custom";
 
 export interface RecipientOption {
@@ -63,6 +63,13 @@ export interface ContractDocument {
   updatedAt: string;
   sentAt?: string;
   sentTo?: string;
+
+  // E-signature fields
+  signingToken?: string;
+  signingTokenExpiresAt?: string;
+  signedAt?: string;
+  signatureDataUrl?: string;
+  signedByIp?: string;
 }
 
 export type ContractDocumentInput = Omit<ContractDocument, "id" | "createdAt" | "updatedAt"> & {
@@ -330,30 +337,38 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${doc.title || "Senay Creatives – Official Letterhead"}</title>
 <style>
-  @page { size: A4; margin: 0; }
+  @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background: #e8e8e6; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: ${BRAND_TOKENS.ink};
-    font-size: 10.5pt;
-    line-height: 1.55;
+  html, body {
+    background: #e8e8e6;
+    margin: 0;
+    padding: 0;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: ${BRAND_TOKENS.ink};
+    font-size: 9.8pt;
+    line-height: 1.5;
+  }
   .page {
     width: 210mm;
-    min-height: 297mm;
-    margin: 10mm auto;
+    height: 297mm;
+    max-height: 297mm;
+    margin: 8mm auto;
     background: #ffffff;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     overflow: hidden;
     box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    page-break-inside: avoid;
+    page-break-after: avoid;
   }
   .ico {
-    width: 3.6mm;
-    height: 3.6mm;
+    width: 3.4mm;
+    height: 3.4mm;
     flex: none;
     fill: none;
     stroke: currentColor;
@@ -363,24 +378,25 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
     display: inline-block;
     vertical-align: middle;
   }
-  .row { display: flex; align-items: center; gap: 2mm; }
+  .row { display: flex; align-items: center; gap: 1.8mm; }
 
   /* HEADER */
   .lh-header {
-    padding: 14mm 20mm 6mm;
+    padding: 10mm 18mm 4.5mm;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    border-bottom: 1.2mm solid ${BRAND_TOKENS.ink};
+    border-bottom: 1mm solid ${BRAND_TOKENS.ink};
+    flex-shrink: 0;
   }
   .lh-logo {
     display: flex;
     align-items: center;
-    gap: 3.5mm;
+    gap: 3mm;
   }
   .logo-badge {
-    width: 11mm;
-    height: 11mm;
+    width: 9.5mm;
+    height: 9.5mm;
     border-radius: 50%;
     border: 0.8px solid ${BRAND_TOKENS.line};
     background: ${BRAND_TOKENS.paper};
@@ -390,13 +406,13 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
     overflow: hidden;
   }
   .logo-badge img {
-    width: 8.5mm;
-    height: 8.5mm;
+    width: 7.5mm;
+    height: 7.5mm;
     object-fit: contain;
     display: block;
   }
   .wm {
-    font-size: 22pt;
+    font-size: 19pt;
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1;
@@ -405,8 +421,8 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   .wm span { color: inherit; }
   
   .lh-contact {
-    font-size: 8.5pt;
-    line-height: 1.6;
+    font-size: 8pt;
+    line-height: 1.5;
     color: ${BRAND_TOKENS.muted};
     text-align: right;
   }
@@ -415,18 +431,39 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
 
   /* BODY */
   .lh-body {
-    flex: 1;
-    padding: 12mm 20mm 10mm;
-    font-size: 10.5pt;
+    flex: 1 1 auto;
+    padding: 7mm 18mm 4mm;
+    font-size: 9.8pt;
+    line-height: 1.5;
     color: ${BRAND_TOKENS.ink};
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+  .lh-body p {
+    margin-bottom: 2.8mm;
+  }
+  .lh-body ul, .lh-body ol {
+    margin-bottom: 2.5mm;
+    padding-left: 5mm;
+  }
+  .lh-body li {
+    margin-bottom: 1mm;
+  }
+  .lh-body h1, .lh-body h2, .lh-body h3 {
+    margin-top: 3mm;
+    margin-bottom: 2mm;
+    font-weight: 700;
   }
   .meta-bar {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 7mm;
-    padding-bottom: 4mm;
+    margin-bottom: 4mm;
+    padding-bottom: 2.5mm;
     border-bottom: 1px dashed ${BRAND_TOKENS.line};
+    flex-shrink: 0;
   }
   .meta-ref {
     font-size: 8pt;
@@ -438,50 +475,56 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   .date {
     font-weight: 600;
     color: ${BRAND_TOKENS.inkSoft};
-    font-size: 9.5pt;
+    font-size: 9pt;
   }
   .recipient {
-    margin-bottom: 7mm;
-    line-height: 1.5;
-    font-size: 10pt;
+    margin-bottom: 4mm;
+    line-height: 1.4;
+    font-size: 9.5pt;
     color: ${BRAND_TOKENS.inkSoft};
+    flex-shrink: 0;
   }
   .recipient strong {
     color: ${BRAND_TOKENS.ink};
-    font-size: 10.5pt;
+    font-size: 10pt;
   }
   .subject {
     font-weight: 700;
-    font-size: 11.5pt;
-    margin-bottom: 6mm;
+    font-size: 11pt;
+    margin-bottom: 3.5mm;
     color: ${BRAND_TOKENS.ink};
     letter-spacing: -0.01em;
+    flex-shrink: 0;
   }
   .salutation {
     font-weight: 600;
-    margin-bottom: 4mm;
+    margin-bottom: 3mm;
+    flex-shrink: 0;
   }
   .signoff {
-    margin-top: 8mm;
+    margin-top: auto;
+    padding-top: 3mm;
     page-break-inside: avoid;
+    flex-shrink: 0;
   }
   .signature-space {
-    height: 14mm;
+    height: 10mm;
     position: relative;
     display: flex;
     align-items: flex-end;
   }
   .sig-line {
-    width: 60mm;
+    width: 55mm;
     border-bottom: 1px solid ${BRAND_TOKENS.line};
     margin-bottom: 2mm;
   }
   .signer-name {
     font-weight: 700;
+    font-size: 10pt;
     color: ${BRAND_TOKENS.ink};
   }
   .signer-title {
-    font-size: 9.5pt;
+    font-size: 9pt;
     color: ${BRAND_TOKENS.muted};
   }
 
@@ -489,18 +532,21 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   .lh-footer {
     background: ${BRAND_TOKENS.ink};
     color: #d9e0dc;
-    padding: 6mm 20mm;
+    padding: 4.5mm 18mm;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 8mm;
-    font-size: 8.5pt;
-    line-height: 1.6;
+    font-size: 8pt;
+    line-height: 1.5;
     margin-top: auto;
+    flex-shrink: 0;
+    page-break-inside: avoid;
+    page-break-after: avoid;
   }
   .lh-footer strong {
     color: #ffffff;
-    font-size: 9.5pt;
+    font-size: 9pt;
     letter-spacing: -0.01em;
   }
   .lh-footer .ico { color: #d9e0dc; }
@@ -508,17 +554,35 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   .lh-footer a { color: inherit; text-decoration: none; }
 
   @media print {
-    html, body { background: #ffffff !important; }
-    .page {
-      margin: 0 !important;
-      box-shadow: none !important;
-      width: 100% !important;
-      min-height: 100vh !important;
-      page-break-after: always;
-    }
     @page {
-      size: A4;
-      margin: 0;
+      size: A4 portrait;
+      margin: 0 !important;
+    }
+    html, body {
+      width: 210mm !important;
+      height: 297mm !important;
+      max-height: 297mm !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      overflow: hidden !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .page {
+      width: 210mm !important;
+      height: 296mm !important; /* 296mm leaves 1mm buffer so it NEVER spills onto page 2 */
+      max-height: 296mm !important;
+      margin: 0 auto !important;
+      box-shadow: none !important;
+      overflow: hidden !important;
+      page-break-inside: avoid !important;
+      page-break-before: avoid !important;
+      page-break-after: avoid !important;
+    }
+    .lh-footer {
+      page-break-inside: avoid !important;
+      page-break-after: avoid !important;
     }
   }
 </style>
@@ -606,9 +670,10 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
 }
 
 /** Render fully responsive, branded HTML email strictly adhering to Senay Creatives design tokens. */
-export function renderEmailHtml(doc: ContractDocument): string {
+export function renderEmailHtml(doc: ContractDocument, opts?: { signingUrl?: string }): string {
   const bodyHtml = formatBodyToHtml(doc.bodyMarkdown);
   const dateFormatted = doc.date || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const signingUrl = opts?.signingUrl || (doc.signingToken ? `${SITE_URL}/sign/${doc.signingToken}` : undefined);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -666,6 +731,49 @@ export function renderEmailHtml(doc: ContractDocument): string {
             <div style="color:${BRAND_TOKENS.inkSoft};">
               ${bodyHtml}
             </div>
+
+            ${
+              signingUrl && !doc.signedAt
+                ? `
+            <div style="margin-top:24px; padding:20px; background-color:${BRAND_TOKENS.paper}; border:1px solid ${BRAND_TOKENS.line}; border-radius:12px; text-align:center;">
+              <p style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:${BRAND_TOKENS.ink};">
+                Electronic Signature Requested
+              </p>
+              <p style="margin:0 0 16px 0; font-size:13px; color:${BRAND_TOKENS.muted};">
+                Please review this document and add your signature securely using your touchscreen, stylus, or mouse.
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                <tr>
+                  <td style="background-color:${BRAND_TOKENS.ink}; border-radius:10px; padding:0;">
+                    <a href="${signingUrl}" style="display:inline-block; padding:12px 28px; font-size:14px; font-weight:700; color:#ffffff; text-decoration:none; letter-spacing:-0.01em;">
+                      ✍&nbsp; Sign Here
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:12px 0 0 0; font-size:11px; color:${BRAND_TOKENS.muted};">
+                Or copy and paste: <a href="${signingUrl}" style="color:${BRAND_TOKENS.ink}; word-break:break-all;">${signingUrl}</a>
+              </p>
+            </div>
+            `
+                : ""
+            }
+
+            ${
+              doc.signedAt && doc.signatureDataUrl
+                ? `
+            <div style="margin-top:24px; padding:16px 20px; background-color:#f8faf9; border:1px solid #d1fae5; border-radius:12px;">
+              <p style="margin:0 0 8px 0; font-size:12px; font-weight:700; color:#065f46; text-transform:uppercase; letter-spacing:0.05em;">
+                ✓ Electronically Signed by ${doc.recipientName}
+              </p>
+              <img src="${doc.signatureDataUrl}" alt="Signature of ${doc.recipientName}" style="max-height:50px; display:block; margin:6px 0;" />
+              <p style="margin:4px 0 0 0; font-size:11px; color:#047857;">
+                Timestamp: ${new Date(doc.signedAt).toLocaleString("en-GB")}
+              </p>
+            </div>
+            `
+                : ""
+            }
 
             <div style="margin-top:28px; padding-top:16px; border-top:1px solid ${BRAND_TOKENS.line};">
               <p style="margin:0 0 4px 0; font-size:14px; color:${BRAND_TOKENS.muted};">Best regards,</p>

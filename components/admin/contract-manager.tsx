@@ -21,6 +21,7 @@ import {
   saveContractAction,
   deleteContractAction,
   sendContractEmailAction,
+  sendSigningRequestAction,
   markAsPrintedAction,
 } from "@/app/admin/contracts/actions";
 
@@ -76,14 +77,25 @@ export function ContractManager({
   const [signerPhone, setSignerPhone] = useState(currentSender?.phone || "+251 976 105 215");
   const [includeSignatureLine, setIncludeSignatureLine] = useState(true);
 
+  // Mobile responsiveness: toggle between Edit and Preview on small screens
+  const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
+
   // UI state
   const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [previewZoom, setPreviewZoom] = useState<number>(85);
   const [previewMode, setPreviewMode] = useState<"visual" | "html">("visual");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
   const [sendTargetEmail, setSendTargetEmail] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatusFilter, setHistoryStatusFilter] = useState<string>("all");
+
+  // Auto-fit preview zoom on mobile phone screens
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setPreviewZoom(40);
+    }
+  }, []);
 
   // Keep alert clearable
   useEffect(() => {
@@ -281,10 +293,11 @@ export function ContractManager({
     });
   }
 
-  // Trigger browser print
+  // Trigger printing: open print popup dialog and save draft
   function handlePrint() {
+    setPrintModalOpen(true);
+
     startTransition(async () => {
-      // First ensure it is saved
       let docId = currentId;
       if (!docId) {
         const input: ContractDocumentInput = {
@@ -320,14 +333,41 @@ export function ContractManager({
         await markAsPrintedAction(docId);
         setStatus("printed");
       }
-
-      // Open standalone print preview
-      const printUrl = `/admin/contracts/print/${docId || "preview"}`;
-      const printWindow = window.open(printUrl, "_blank");
-      if (printWindow) {
-        printWindow.focus();
-      }
     });
+  }
+
+  // Execute browser printing via dedicated popup window or iframe fallback
+  function executeBrowserPrint(customHtml?: string) {
+    const htmlToPrint = customHtml || (format === "a4" ? renderedHtml : renderA4LetterheadHtml(currentDoc));
+
+    // 1. Direct popup browser window (synchronous user gesture avoids blocker)
+    try {
+      const win = window.open(
+        "",
+        "SC_PRINT_POPUP",
+        "width=860,height=960,top=40,left=100,toolbar=no,menubar=no,scrollbars=yes,status=no,resizable=yes",
+      );
+
+      if (win) {
+        win.document.open();
+        win.document.write(htmlToPrint);
+        win.document.close();
+        win.focus();
+        setTimeout(() => {
+          try {
+            win.print();
+          } catch {}
+        }, 300);
+        return;
+      }
+    } catch {}
+
+    // 2. Direct iframe fallback if window.open is restricted
+    const frame = document.getElementById("sc-direct-print-frame") as HTMLIFrameElement;
+    if (frame && frame.contentWindow) {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    }
   }
 
   // Copy rendered HTML
@@ -404,6 +444,67 @@ export function ContractManager({
         });
       } else {
         setNotice({ type: "error", text: sendRes.error });
+      }
+    });
+  }
+
+  // Execute sending a dedicated signing invitation
+  function handleRequestSignature() {
+    if (!recipientEmail || !recipientEmail.includes("@")) {
+      setNotice({ type: "error", text: "Please enter a valid recipient email address first." });
+      return;
+    }
+
+    startTransition(async () => {
+      // 1. Ensure document is saved first
+      let docId = currentId;
+      const input: ContractDocumentInput = {
+        id: currentId || undefined,
+        title,
+        refNumber,
+        docType,
+        format,
+        status: status === "signed" ? "signed" : "sent",
+        recipientType,
+        recipientId: recipientId || undefined,
+        recipientName,
+        recipientEmail,
+        recipientOrg,
+        recipientAddress,
+        recipientPhone,
+        date,
+        subject,
+        salutation,
+        bodyMarkdown,
+        signerName,
+        signerTitle,
+        signerEmail,
+        signerPhone,
+        includeSignatureLine: true,
+      };
+
+      const saveRes = await saveContractAction(input);
+      if (!saveRes.ok) {
+        setNotice({ type: "error", text: saveRes.error });
+        return;
+      }
+
+      docId = saveRes.document.id;
+      setCurrentId(docId);
+
+      // 2. Dispatch signing invitation
+      const signRes = await sendSigningRequestAction(docId);
+      if (signRes.ok) {
+        setStatus("sent");
+        setDocuments((prev) =>
+          prev.map((d) => (d.id === docId ? { ...d, status: "sent", sentTo: recipientEmail } : d)),
+        );
+        setNotice({
+          type: "success",
+          text: `Signing request sent to ${signRes.sentTo}! Link: ${signRes.signingUrl}`,
+        });
+      } else {
+        setNotice({ type: "error", text: signRes.error });
       }
     });
   }
@@ -502,77 +603,82 @@ export function ContractManager({
       drafts: documents.filter((d) => d.status === "draft").length,
       sent: documents.filter((d) => d.status === "sent").length,
       printed: documents.filter((d) => d.status === "printed").length,
+      signed: documents.filter((d) => d.status === "signed").length,
     };
   }, [documents]);
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-5 p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       {/* Top Banner / Heading */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line pb-4 sm:pb-6">
         <div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center justify-center size-8 rounded-lg bg-ink text-paper font-semibold text-sm">
               SC
             </span>
-            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+            <h1 className="font-display text-xl sm:text-3xl font-bold tracking-tight text-ink">
               Contracts & Mail Management
             </h1>
           </div>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-xs sm:text-sm text-muted">
             Generate, customize, print, and send official company letterheads, NDAs, employee offers, and client contracts.
           </p>
         </div>
 
         {/* Global Tab Switcher */}
-        <div className="flex items-center gap-2 bg-paper-dim p-1 rounded-xl border border-line self-start md:self-auto">
+        <div className="w-full sm:w-auto grid grid-cols-2 sm:flex sm:items-center gap-1.5 bg-paper-dim p-1 rounded-xl border border-line">
           <button
             onClick={() => setActiveTab("composer")}
             className={cn(
-              "px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2",
+              "px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2",
               activeTab === "composer"
                 ? "bg-ink text-paper shadow-sm"
                 : "text-ink-soft hover:text-ink hover:bg-paper",
             )}
           >
-            <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="size-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
-            Composer & Editor
+            <span>Composer</span>
           </button>
           <button
             onClick={() => setActiveTab("history")}
             className={cn(
-              "px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2",
+              "px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2",
               activeTab === "history"
                 ? "bg-ink text-paper shadow-sm"
                 : "text-ink-soft hover:text-ink hover:bg-paper",
             )}
           >
-            <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="size-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
-            Saved Documents ({documents.length})
+            <span>Documents ({documents.length})</span>
           </button>
         </div>
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="rounded-xl border border-line bg-paper p-4">
-          <div className="text-xs font-medium text-muted uppercase tracking-wider">All Documents</div>
-          <div className="mt-1 font-display text-2xl font-bold text-ink">{stats.total}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-4">
+        <div className="rounded-xl border border-line bg-paper p-3 sm:p-4">
+          <div className="text-[11px] sm:text-xs font-medium text-muted uppercase tracking-wider">All Documents</div>
+          <div className="mt-1 font-display text-xl sm:text-2xl font-bold text-ink">{stats.total}</div>
         </div>
-        <div className="rounded-xl border border-line bg-paper p-4">
-          <div className="text-xs font-medium text-muted uppercase tracking-wider">Drafts</div>
-          <div className="mt-1 font-display text-2xl font-bold text-ink">{stats.drafts}</div>
+        <div className="rounded-xl border border-line bg-paper p-3 sm:p-4">
+          <div className="text-[11px] sm:text-xs font-medium text-muted uppercase tracking-wider">Drafts</div>
+          <div className="mt-1 font-display text-xl sm:text-2xl font-bold text-ink">{stats.drafts}</div>
         </div>
-        <div className="rounded-xl border border-line bg-paper p-4">
-          <div className="text-xs font-medium text-muted uppercase tracking-wider">Sent Emails</div>
-          <div className="mt-1 font-display text-2xl font-bold text-ink">{stats.sent}</div>
+        <div className="rounded-xl border border-line bg-paper p-3 sm:p-4">
+          <div className="text-[11px] sm:text-xs font-medium text-muted uppercase tracking-wider">Sent Emails</div>
+          <div className="mt-1 font-display text-xl sm:text-2xl font-bold text-ink">{stats.sent}</div>
         </div>
-        <div className="rounded-xl border border-line bg-paper p-4">
-          <div className="text-xs font-medium text-muted uppercase tracking-wider">Printed / A4</div>
-          <div className="mt-1 font-display text-2xl font-bold text-inkSoft">{stats.printed}</div>
+        <div className="rounded-xl border border-line bg-paper p-3 sm:p-4">
+          <div className="text-[11px] sm:text-xs font-medium text-muted uppercase tracking-wider">Printed / A4</div>
+          <div className="mt-1 font-display text-xl sm:text-2xl font-bold text-inkSoft">{stats.printed}</div>
+        </div>
+        <div className="rounded-xl border border-line bg-paper p-3 sm:p-4 col-span-2 sm:col-span-1">
+          <div className="text-[11px] sm:text-xs font-medium text-muted uppercase tracking-wider">Signed ✍️</div>
+          <div className="mt-1 font-display text-xl sm:text-2xl font-bold text-emerald-700">{stats.signed}</div>
         </div>
       </div>
 
@@ -598,12 +704,12 @@ export function ContractManager({
 
       {/* TAB 1: COMPOSER & LIVE PREVIEW */}
       {activeTab === "composer" && (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:gap-6">
           {/* Top Controls: Templates & Format Selection */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-2xl border border-line bg-paper">
-            {/* Template Selector Buttons */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted mr-1">Templates:</span>
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl border border-line bg-paper">
+            {/* Template Selector Horizontal Scroll Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 lg:pb-0 w-full lg:w-auto -mx-1 px-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted mr-1 shrink-0">Templates:</span>
               {(Object.keys(TEMPLATES) as ContractDocType[]).map((key) => {
                 const item = TEMPLATES[key];
                 const active = docType === key;
@@ -611,9 +717,12 @@ export function ContractManager({
                   <button
                     key={key}
                     type="button"
-                    onClick={() => applyTemplate(key)}
+                    onClick={() => {
+                      applyTemplate(key);
+                      setMobileView("edit");
+                    }}
                     className={cn(
-                      "px-3 py-1.5 text-xs font-medium rounded-lg border transition-all",
+                      "px-3 py-1.5 text-xs font-medium rounded-lg border whitespace-nowrap shrink-0 transition-all",
                       active
                         ? "bg-ink text-white border-ink shadow-sm"
                         : "bg-paper-dim border-line text-ink-soft hover:border-ink hover:text-ink",
@@ -626,42 +735,44 @@ export function ContractManager({
               })}
             </div>
 
-            {/* Format Toggle (A4 vs Email) */}
-            <div className="flex items-center gap-2 self-start lg:self-auto border-t lg:border-t-0 pt-3 lg:pt-0 border-line">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted">Format:</span>
-              <div className="flex rounded-lg border border-line p-0.5 bg-paper-dim">
-                <button
-                  type="button"
-                  onClick={() => setFormat("a4")}
-                  className={cn(
-                    "px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
-                    format === "a4" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink",
-                  )}
-                >
-                  <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  A4 Letterhead (Print)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormat("email")}
-                  className={cn(
-                    "px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
-                    format === "email" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink",
-                  )}
-                >
-                  <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Email (HTML)
-                </button>
+            {/* Format Toggle (A4 vs Email) & New Blank */}
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-start gap-2 border-t lg:border-t-0 pt-2.5 lg:pt-0 border-line">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted">Format:</span>
+                <div className="flex rounded-lg border border-line p-0.5 bg-paper-dim">
+                  <button
+                    type="button"
+                    onClick={() => setFormat("a4")}
+                    className={cn(
+                      "px-2.5 sm:px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1",
+                      format === "a4" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink",
+                    )}
+                  >
+                    <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>A4 Letterhead</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormat("email")}
+                    className={cn(
+                      "px-2.5 sm:px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1",
+                      format === "email" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink",
+                    )}
+                  >
+                    <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span>Email (HTML)</span>
+                  </button>
+                </div>
               </div>
 
               <button
                 type="button"
                 onClick={resetComposer}
-                className="px-3 py-1 text-xs font-medium rounded-lg border border-line text-ink-soft hover:bg-paper-dim hover:text-ink transition-colors"
+                className="px-3 py-1 text-xs font-medium rounded-lg border border-line text-ink-soft hover:bg-paper-dim hover:text-ink transition-colors ml-auto sm:ml-0"
                 title="Start a clean blank document"
               >
                 + New Blank
@@ -669,10 +780,50 @@ export function ContractManager({
             </div>
           </div>
 
+          {/* Mobile View Toggle (Editor vs Preview) visible on < lg */}
+          <div className="lg:hidden flex items-center p-1 bg-paper-dim rounded-xl border border-line">
+            <button
+              type="button"
+              onClick={() => setMobileView("edit")}
+              className={cn(
+                "flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5",
+                mobileView === "edit"
+                  ? "bg-ink text-paper shadow-sm"
+                  : "text-ink-soft hover:text-ink",
+              )}
+            >
+              <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span>1. Edit Details</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileView("preview")}
+              className={cn(
+                "flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5",
+                mobileView === "preview"
+                  ? "bg-ink text-paper shadow-sm"
+                  : "text-ink-soft hover:text-ink",
+              )}
+            >
+              <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <span>2. Live Preview ({format === "a4" ? "A4" : "Email"})</span>
+            </button>
+          </div>
+
           {/* Main 2-Column Split: Editor + Live Preview */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* LEFT: Editor Form (5 cols on lg) */}
-            <div className="lg:col-span-5 flex flex-col gap-5 bg-paper rounded-2xl border border-line p-5 shadow-sm">
+            <div
+              className={cn(
+                "lg:col-span-5 flex flex-col gap-4 sm:gap-5 bg-paper rounded-2xl border border-line p-4 sm:p-5 shadow-sm",
+                mobileView === "preview" && "hidden lg:flex",
+              )}
+            >
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <h2 className="font-display text-base font-semibold text-ink flex items-center gap-2">
                   <span>Document Details</span>
@@ -731,7 +882,7 @@ export function ContractManager({
                       }}
                       onFocus={() => setIsRecipientPopupOpen(true)}
                       placeholder="Search recipient by name, company, email, or role..."
-                      className="w-full text-sm rounded-xl border border-line bg-paper pl-9 pr-16 py-2.5 text-ink placeholder:text-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                      className="w-full text-sm rounded-xl border border-line bg-paper pl-9 pr-16 py-2.5 text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink"
                     />
                     <div className="absolute right-2 flex items-center gap-1">
                       {recipientSearchQuery && (
@@ -923,7 +1074,7 @@ export function ContractManager({
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
                     placeholder="e.g. Abebe Kebede"
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
                   />
                 </div>
                 <div className="space-y-1">
@@ -933,7 +1084,7 @@ export function ContractManager({
                     value={recipientOrg}
                     onChange={(e) => setRecipientOrg(e.target.value)}
                     placeholder="e.g. Acme Corp / Engineering"
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
                   />
                 </div>
                 <div className="space-y-1">
@@ -943,7 +1094,7 @@ export function ContractManager({
                     value={recipientEmail}
                     onChange={(e) => setRecipientEmail(e.target.value)}
                     placeholder="recipient@example.com"
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
                   />
                 </div>
                 <div className="space-y-1">
@@ -953,7 +1104,7 @@ export function ContractManager({
                     value={recipientAddress}
                     onChange={(e) => setRecipientAddress(e.target.value)}
                     placeholder="e.g. Bole, Addis Ababa"
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
                   />
                 </div>
               </div>
@@ -966,7 +1117,7 @@ export function ContractManager({
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-ink focus:outline-none"
                   />
                 </div>
                 <div className="space-y-1">
@@ -975,7 +1126,7 @@ export function ContractManager({
                     type="text"
                     value={refNumber}
                     onChange={(e) => setRefNumber(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink font-mono text-xs focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink font-mono text-xs focus:border-ink focus:outline-none"
                   />
                 </div>
               </div>
@@ -988,7 +1139,7 @@ export function ContractManager({
                     type="text"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-ink focus:outline-none"
                   />
                 </div>
                 <div className="space-y-1">
@@ -997,7 +1148,7 @@ export function ContractManager({
                     type="text"
                     value={salutation}
                     onChange={(e) => setSalutation(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-ink focus:outline-none"
                   />
                 </div>
                 <div className="sm:col-span-2 space-y-1">
@@ -1006,7 +1157,7 @@ export function ContractManager({
                     type="text"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink font-semibold focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink font-semibold focus:border-ink focus:outline-none"
                   />
                 </div>
               </div>
@@ -1068,7 +1219,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                   value={bodyMarkdown}
                   onChange={(e) => setBodyMarkdown(e.target.value)}
                   rows={14}
-                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-sm text-ink leading-relaxed font-sans placeholder:text-muted focus:border-brand focus:outline-none"
+                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-sm text-ink leading-relaxed font-sans placeholder:text-muted focus:border-ink focus:outline-none"
                   placeholder="Write the document content here..."
                 />
               </div>
@@ -1104,7 +1255,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                       value={signerName}
                       onChange={(e) => setSignerName(e.target.value)}
                       placeholder="e.g. Eyuel Kebede"
-                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-ink focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1114,7 +1265,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                       value={signerTitle}
                       onChange={(e) => setSignerTitle(e.target.value)}
                       placeholder="e.g. Managing Director, Senay Creatives"
-                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-ink focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1124,7 +1275,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                       value={signerPhone}
                       onChange={(e) => setSignerPhone(e.target.value)}
                       placeholder="e.g. +251 976 105 215"
-                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-ink focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1134,7 +1285,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                       value={signerEmail}
                       onChange={(e) => setSignerEmail(e.target.value)}
                       placeholder="e.g. info@senaycreatives.com"
-                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-ink focus:outline-none"
                     />
                   </div>
                   <div className="sm:col-span-2 flex items-center gap-2 pt-1">
@@ -1143,7 +1294,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                       id="includeSig"
                       checked={includeSignatureLine}
                       onChange={(e) => setIncludeSignatureLine(e.target.checked)}
-                      className="size-4 rounded border-line text-brand focus:ring-brand"
+                      className="size-4 rounded border-line text-ink focus:ring-ink"
                     />
                     <label htmlFor="includeSig" className="text-xs text-ink-soft cursor-pointer">
                       Include formal signature line space in output
@@ -1153,48 +1304,71 @@ This document shall be governed by and interpreted pursuant to the laws of the F
               </div>
 
               {/* Action Buttons Bar */}
-              <div className="flex flex-wrap items-center gap-2.5 border-t border-line pt-4 mt-1">
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 border-t border-line pt-4 mt-1">
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={handleSaveDraft}
-                  className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-ink text-paper text-sm font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-ink text-paper text-xs sm:text-sm font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50 shadow-xs"
                 >
-                  <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="size-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                   </svg>
-                  {isPending ? "Saving..." : "Save Draft"}
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={handlePrint}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-line bg-paper text-sm font-semibold text-ink hover:border-ink hover:bg-paper-dim transition-colors"
-                  title="Open print view or save as PDF"
-                >
-                  <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  Print / PDF
+                  <span>{isPending ? "Saving..." : "Save Draft"}</span>
                 </button>
 
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={handleOpenSendModal}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-ink text-white text-sm font-semibold hover:bg-neutral-800 transition-colors"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-ink text-white text-xs sm:text-sm font-semibold hover:bg-neutral-800 transition-colors shadow-xs"
                 >
-                  <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="size-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
-                  Send Email
+                  <span>Send Email</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleRequestSignature}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-ink bg-paper text-ink text-xs sm:text-sm font-semibold hover:bg-ink hover:text-white transition-colors shadow-xs"
+                  title="Send dedicated signing invitation with touchscreen signature pad"
+                >
+                  <span>✍️</span>
+                  <span>Request Signature</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handlePrint}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-line bg-paper text-xs sm:text-sm font-semibold text-ink hover:border-ink hover:bg-paper-dim transition-colors"
+                  title="Open print view or save as PDF"
+                >
+                  <svg className="size-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  <span>Print / PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMobileView("preview")}
+                  className="lg:hidden inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-line bg-paper-dim text-xs font-semibold text-ink hover:border-ink transition-colors"
+                >
+                  <svg className="size-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  <span>Preview</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleCopyHtml}
-                  className="px-3 py-2.5 rounded-xl border border-line text-muted hover:text-ink hover:bg-paper-dim transition-colors"
+                  className="hidden sm:inline-flex px-3 py-2.5 rounded-xl border border-line text-muted hover:text-ink hover:bg-paper-dim transition-colors"
                   title="Copy raw HTML to clipboard"
                 >
                   <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1205,31 +1379,73 @@ This document shall be governed by and interpreted pursuant to the laws of the F
             </div>
 
             {/* RIGHT: Live Preview Pane (7 cols on lg) */}
-            <div className="lg:col-span-7 flex flex-col gap-3">
+            <div
+              className={cn(
+                "lg:col-span-7 flex flex-col gap-3",
+                mobileView === "edit" && "hidden lg:flex",
+              )}
+            >
+              {/* Mobile Back to Edit toolbar */}
+              <div className="lg:hidden flex items-center justify-between gap-2 pb-1">
+                <button
+                  type="button"
+                  onClick={() => setMobileView("edit")}
+                  className="text-xs font-semibold text-ink flex items-center gap-1.5 px-3 py-2 rounded-xl border border-line bg-paper hover:bg-paper-dim transition-colors"
+                >
+                  <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  <span>Back to Edit Form</span>
+                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handlePrint}
+                    className="text-xs font-semibold px-3 py-2 rounded-xl border border-line bg-paper hover:bg-paper-dim transition-colors flex items-center gap-1"
+                  >
+                    <span>🖨️</span>
+                    <span>Print</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleOpenSendModal}
+                    className="text-xs font-semibold px-3 py-2 rounded-xl bg-ink text-white hover:bg-neutral-800 transition-colors flex items-center gap-1"
+                  >
+                    <span>✉️</span>
+                    <span>Send</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Preview Toolbar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-line bg-paper">
+              <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-4 py-2.5 rounded-xl border border-line bg-paper">
                 <div className="flex items-center gap-2">
                   <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span className="text-xs font-bold uppercase tracking-wider text-ink">
-                    Live Preview ({format === "a4" ? "A4 Letterhead" : "Responsive Email"})
+                    Live Preview ({format === "a4" ? "A4" : "Email"})
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  {/* Zoom controller */}
-                  <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted">
-                    <span>Zoom:</span>
-                    {[65, 80, 100].map((z) => (
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {/* Zoom controller - visible on phone and desktop! */}
+                  <div className="flex items-center gap-1 text-xs text-muted">
+                    <span className="hidden sm:inline">Zoom:</span>
+                    {[
+                      { label: "Fit", val: 40 },
+                      { label: "60%", val: 60 },
+                      { label: "80%", val: 80 },
+                      { label: "100%", val: 100 },
+                    ].map((z) => (
                       <button
-                        key={z}
+                        key={z.val}
                         type="button"
-                        onClick={() => setPreviewZoom(z)}
+                        onClick={() => setPreviewZoom(z.val)}
                         className={cn(
-                          "px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors",
-                          previewZoom === z ? "bg-ink text-paper font-semibold" : "hover:text-ink bg-paper-dim",
+                          "px-2 py-0.5 rounded text-[11px] font-medium transition-colors",
+                          previewZoom === z.val ? "bg-ink text-paper font-semibold shadow-xs" : "hover:text-ink bg-paper-dim",
                         )}
                       >
-                        {z}%
+                        {z.label}
                       </button>
                     ))}
                   </div>
@@ -1240,7 +1456,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                       type="button"
                       onClick={() => setPreviewMode("visual")}
                       className={cn(
-                        "px-2.5 py-1 rounded font-medium transition-all",
+                        "px-2 py-1 rounded font-medium transition-all text-[11px] sm:text-xs",
                         previewMode === "visual" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink",
                       )}
                     >
@@ -1250,18 +1466,18 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                       type="button"
                       onClick={() => setPreviewMode("html")}
                       className={cn(
-                        "px-2.5 py-1 rounded font-medium transition-all",
+                        "px-2 py-1 rounded font-medium transition-all text-[11px] sm:text-xs",
                         previewMode === "html" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink",
                       )}
                     >
-                      Raw HTML
+                      HTML
                     </button>
                   </div>
                 </div>
               </div>
 
               {/* Preview Container Frame */}
-              <div className="w-full rounded-2xl border border-line bg-[#e8e8e6] p-4 sm:p-6 overflow-auto max-h-[850px] flex justify-center">
+              <div className="w-full rounded-2xl border border-line bg-[#e8e8e6] p-2 sm:p-6 overflow-auto max-h-[85vh] flex justify-center touch-pan-x">
                 {previewMode === "visual" ? (
                   <div
                     style={{
@@ -1304,7 +1520,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                 value={historySearch}
                 onChange={(e) => setHistorySearch(e.target.value)}
                 placeholder="Search by title, recipient, ref..."
-                className="w-full rounded-xl border border-line bg-paper pl-9 pr-3 py-2 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none"
+                className="w-full rounded-xl border border-line bg-paper pl-9 pr-3 py-2 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
               />
               <svg className="size-4 absolute left-3 top-3 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1316,12 +1532,13 @@ This document shall be governed by and interpreted pursuant to the laws of the F
               <select
                 value={historyStatusFilter}
                 onChange={(e) => setHistoryStatusFilter(e.target.value)}
-                className="text-xs rounded-lg border border-line bg-paper px-3 py-1.5 text-ink focus:border-brand focus:outline-none"
+                className="text-xs rounded-lg border border-line bg-paper px-3 py-1.5 text-ink focus:border-ink focus:outline-none"
               >
                 <option value="all">All Statuses ({documents.length})</option>
                 <option value="draft">Drafts ({stats.drafts})</option>
                 <option value="sent">Sent ({stats.sent})</option>
                 <option value="printed">Printed ({stats.printed})</option>
+                <option value="signed">Signed ({stats.signed})</option>
               </select>
             </div>
           </div>
@@ -1332,106 +1549,207 @@ This document shall be governed by and interpreted pursuant to the laws of the F
               <p>No documents found matching your filter.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-line text-xs font-semibold uppercase tracking-wider text-muted">
-                    <th className="py-3 px-3">Document</th>
-                    <th className="py-3 px-3">Recipient</th>
-                    <th className="py-3 px-3">Type</th>
-                    <th className="py-3 px-3">Format</th>
-                    <th className="py-3 px-3">Status</th>
-                    <th className="py-3 px-3">Updated</th>
-                    <th className="py-3 px-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {filteredHistory.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-paper-dim/60 transition-colors">
-                      <td className="py-3.5 px-3">
-                        <div className="font-semibold text-ink">{doc.title}</div>
+            <>
+              {/* Mobile Cards View (< md) */}
+              <div className="md:hidden flex flex-col gap-3">
+                {filteredHistory.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="p-4 rounded-xl border border-line bg-paper flex flex-col gap-3 shadow-xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-sm text-ink truncate">{doc.title}</div>
                         {doc.refNumber && (
-                          <div className="text-xs font-mono text-muted">{doc.refNumber}</div>
+                          <div className="text-[11px] font-mono text-muted">{doc.refNumber}</div>
                         )}
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <div className="font-medium text-ink">{doc.recipientName || "—"}</div>
-                        {doc.recipientOrg && <div className="text-xs text-muted">{doc.recipientOrg}</div>}
-                        {doc.recipientEmail && <div className="text-xs text-muted">{doc.recipientEmail}</div>}
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-paper-dim border border-line text-ink-soft">
-                          {TEMPLATES[doc.docType]?.name || doc.docType}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <span className="text-xs uppercase font-bold text-muted">
-                          {doc.format === "a4" ? "A4 Print" : "Email"}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <span
-                          className={cn(
-                            "text-xs px-2.5 py-0.5 rounded-full font-semibold capitalize",
-                            doc.status === "draft"
-                              ? "bg-amber-100 text-amber-800"
-                              : doc.status === "sent"
-                              ? "bg-neutral-200 text-neutral-800"
-                              : "bg-emerald-100 text-emerald-800",
-                          )}
-                        >
-                          {doc.status}
-                        </span>
-                        {doc.sentAt && (
-                          <div className="text-[10px] text-muted mt-0.5">
-                            {new Date(doc.sentAt).toLocaleDateString()}
-                          </div>
+                      </div>
+                      <span
+                        className={cn(
+                          "text-[10px] px-2.5 py-0.5 rounded-full font-semibold capitalize shrink-0",
+                          doc.status === "draft"
+                            ? "bg-amber-100 text-amber-800"
+                            : doc.status === "sent"
+                            ? "bg-neutral-200 text-neutral-800"
+                            : doc.status === "signed"
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                            : "bg-blue-100 text-blue-800",
                         )}
-                      </td>
-                      <td className="py-3.5 px-3 text-xs text-muted">
-                        {new Date(doc.updatedAt).toLocaleDateString()}
-                      </td>
-                      <td className="py-3.5 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => loadDocumentIntoComposer(doc)}
-                            className="px-2.5 py-1 text-xs font-medium rounded-lg border border-line bg-paper text-ink hover:bg-ink hover:text-paper transition-colors"
-                          >
-                            Edit
-                          </button>
-                          <Link
-                            href={`/admin/contracts/print/${doc.id}`}
-                            target="_blank"
-                            className="px-2 py-1 text-xs font-medium rounded-lg border border-line bg-paper text-muted hover:text-ink transition-colors"
-                            title="Print preview"
-                          >
-                            🖨️
-                          </Link>
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() => handleDeleteDocument(doc.id)}
-                            className="px-2 py-1 text-xs font-medium rounded-lg border border-transparent text-danger hover:bg-rose-50 transition-colors"
-                            title="Delete document"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </td>
+                      >
+                        {doc.status === "signed" ? "Signed ✍️" : doc.status}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                      <span className="font-medium text-ink-soft">{doc.recipientName || "—"}</span>
+                      {doc.recipientOrg && <span>• {doc.recipientOrg}</span>}
+                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-paper-dim text-muted font-bold">
+                        {doc.format === "a4" ? "A4" : "Email"}
+                      </span>
+                      <span className="text-[11px] text-muted">
+                        • {new Date(doc.updatedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-line/60">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          loadDocumentIntoComposer(doc);
+                          setMobileView("edit");
+                        }}
+                        className="flex-1 py-2 text-xs font-semibold rounded-lg bg-ink text-paper text-center hover:bg-neutral-800 transition-colors"
+                      >
+                        Edit in Composer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => executeBrowserPrint(renderA4LetterheadHtml(doc))}
+                        className="px-3 py-2 text-xs font-medium rounded-lg border border-line bg-paper text-ink hover:bg-paper-dim transition-colors flex items-center gap-1"
+                        title="Print / PDF"
+                      >
+                        <span>🖨️</span>
+                        <span>Print</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => handleDeleteDocument(doc.id)}
+                        className="p-2 text-xs font-medium rounded-lg text-danger hover:bg-rose-50 transition-colors"
+                        title="Delete document"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View (>= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-xs font-semibold uppercase tracking-wider text-muted">
+                      <th className="py-3 px-3">Document</th>
+                      <th className="py-3 px-3">Recipient</th>
+                      <th className="py-3 px-3">Type</th>
+                      <th className="py-3 px-3">Format</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3">Updated</th>
+                      <th className="py-3 px-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {filteredHistory.map((doc) => (
+                      <tr key={doc.id} className="hover:bg-paper-dim/60 transition-colors">
+                        <td className="py-3.5 px-3">
+                          <div className="font-semibold text-ink">{doc.title}</div>
+                          {doc.refNumber && (
+                            <div className="text-xs font-mono text-muted">{doc.refNumber}</div>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <div className="font-medium text-ink">{doc.recipientName || "—"}</div>
+                          {doc.recipientOrg && <div className="text-xs text-muted">{doc.recipientOrg}</div>}
+                          {doc.recipientEmail && <div className="text-xs text-muted">{doc.recipientEmail}</div>}
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-paper-dim border border-line text-ink-soft">
+                            {TEMPLATES[doc.docType]?.name || doc.docType}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span className="text-xs uppercase font-bold text-muted">
+                            {doc.format === "a4" ? "A4 Print" : "Email"}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span
+                            className={cn(
+                              "text-xs px-2.5 py-0.5 rounded-full font-semibold capitalize",
+                              doc.status === "draft"
+                                ? "bg-amber-100 text-amber-800"
+                                : doc.status === "sent"
+                                ? "bg-neutral-200 text-neutral-800"
+                                : doc.status === "signed"
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold"
+                                : "bg-neutral-100 text-neutral-800",
+                            )}
+                          >
+                            {doc.status === "signed" ? "Signed ✍️" : doc.status}
+                          </span>
+                          {doc.signedAt ? (
+                            <div className="text-[10px] text-emerald-700 font-medium mt-0.5">
+                              Signed: {new Date(doc.signedAt).toLocaleDateString()}
+                            </div>
+                          ) : doc.sentAt ? (
+                            <div className="text-[10px] text-muted mt-0.5">
+                              Sent: {new Date(doc.sentAt).toLocaleDateString()}
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="py-3.5 px-3 text-xs text-muted">
+                          {new Date(doc.updatedAt).toLocaleDateString()}
+                        </td>
+                        <td className="py-3.5 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                loadDocumentIntoComposer(doc);
+                                setMobileView("edit");
+                              }}
+                              className="px-2.5 py-1 text-xs font-medium rounded-lg border border-line bg-paper text-ink hover:bg-ink hover:text-paper transition-colors"
+                            >
+                              Edit
+                            </button>
+                            {doc.signingToken && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = `${window.location.origin}/sign/${doc.signingToken}`;
+                                  navigator.clipboard.writeText(url);
+                                  setNotice({ type: "success", text: "Signing link copied to clipboard!" });
+                                }}
+                                className="px-2 py-1 text-xs font-medium rounded-lg border border-line bg-paper text-muted hover:text-ink transition-colors"
+                                title="Copy Signing Link"
+                              >
+                                🔗
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => executeBrowserPrint(renderA4LetterheadHtml(doc))}
+                              className="px-2 py-1 text-xs font-medium rounded-lg border border-line bg-paper text-muted hover:text-ink transition-colors"
+                              title="Print / Save PDF"
+                            >
+                              🖨️
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => handleDeleteDocument(doc.id)}
+                              className="px-2 py-1 text-xs font-medium rounded-lg border border-transparent text-danger hover:bg-rose-50 transition-colors"
+                              title="Delete document"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}
 
       {/* SEND EMAIL MODAL DIALOG */}
       {emailModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-line bg-paper p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="w-full max-w-md rounded-2xl border border-line bg-paper p-4 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <h3 className="font-display text-lg font-bold text-ink">Send Document via Email</h3>
               <button
@@ -1451,7 +1769,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                   value={sendTargetEmail}
                   onChange={(e) => setSendTargetEmail(e.target.value)}
                   placeholder="recipient@example.com"
-                  className="mt-1 w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-brand focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none"
                 />
               </div>
 
@@ -1461,7 +1779,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                   type="text"
                   value={subject || title}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-brand focus:outline-none font-semibold"
+                  className="mt-1 w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none font-semibold"
                 />
               </div>
 
@@ -1488,6 +1806,94 @@ This document shall be governed by and interpreted pursuant to the laws of the F
               >
                 {isPending ? "Sending..." : "Send Now"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRINT POPUP BROWSER & PREVIEW DIALOG */}
+      {printModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="w-full max-w-4xl bg-paper rounded-2xl border border-line shadow-2xl overflow-hidden flex flex-col max-h-[96vh] my-auto">
+            {/* Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3.5 border-b border-line bg-paper">
+              <div className="flex items-center gap-2">
+                <span className="flex size-7 items-center justify-center rounded-lg bg-ink text-paper text-sm">
+                  🖨️
+                </span>
+                <div>
+                  <h3 className="font-display text-base sm:text-lg font-bold text-ink">
+                    A4 Print & PDF Preview
+                  </h3>
+                  <div className="flex items-center gap-2 text-[11px] text-muted">
+                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-medium border border-emerald-200">
+                      ✓ Fits Exactly in 1 Page
+                    </span>
+                    <span className="hidden sm:inline">• Footer locked to base</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => executeBrowserPrint()}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-ink text-paper text-xs sm:text-sm font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
+                >
+                  <span>🖨️</span>
+                  <span>Print Now / Save PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintModalOpen(false)}
+                  className="p-1.5 text-muted hover:text-ink hover:bg-paper-dim rounded-lg text-sm transition-colors"
+                  title="Close preview"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Document preview container */}
+            <div className="flex-1 overflow-auto bg-[#e8e8e6] p-2 sm:p-6 flex justify-center items-start min-h-[350px]">
+              <div
+                style={{
+                  transform: typeof window !== "undefined" && window.innerWidth < 640 ? "scale(0.42)" : "scale(0.75)",
+                  transformOrigin: "top center",
+                }}
+                className="shrink-0"
+              >
+                <iframe
+                  id="sc-direct-print-frame"
+                  title="Print Preview Frame"
+                  srcDoc={format === "a4" ? renderedHtml : renderA4LetterheadHtml(currentDoc)}
+                  className="w-[210mm] h-[297mm] max-h-[297mm] bg-white shadow-2xl border-0 overflow-hidden"
+                />
+              </div>
+            </div>
+
+            {/* Bottom Bar */}
+            <div className="px-4 sm:px-6 py-3 border-t border-line bg-paper flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
+              <div>
+                Tip: In the print dialog, ensure Margins is set to &ldquo;None&rdquo; or &ldquo;Default&rdquo; and scale is 100%.
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPrintModalOpen(false)}
+                  className="px-4 py-1.5 rounded-lg border border-line text-ink-soft hover:bg-paper-dim font-medium transition-colors"
+                >
+                  Done
+                </button>
+                <button
+                  type="button"
+                  onClick={() => executeBrowserPrint()}
+                  className="px-4 py-1.5 rounded-lg bg-ink text-paper font-semibold hover:bg-neutral-800 transition-colors flex items-center gap-1"
+                >
+                  <span>🖨️</span>
+                  <span>Print (A4)</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

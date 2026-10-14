@@ -38,6 +38,15 @@ export function AdminNav({ isAdmin = false, userName }: { isAdmin?: boolean; use
         </button>
       </div>
 
+      {/* Mobile Backdrop Overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-xs md:hidden"
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <nav className={cn(
         "flex flex-col gap-1 border-r border-line bg-paper md:w-64 flex-shrink-0 transition-transform duration-200 ease-in-out",
         "fixed inset-y-0 left-0 z-40 w-64 p-4 pt-[80px] md:pt-4 md:relative md:translate-x-0 h-screen overflow-y-auto",

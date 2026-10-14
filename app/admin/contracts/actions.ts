@@ -3,11 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
-import { sendEmail } from "@/lib/mailer";
+import { sendEmail, sendNotification } from "@/lib/mailer";
+import { signingInvitation } from "@/lib/email-templates";
+import { SITE_URL } from "@/lib/site";
 import {
   saveContractDocument,
   deleteContractDocument,
   getContractDocument,
+  createSigningToken,
   renderEmailHtml,
   type ContractDocumentInput,
   type ContractDocument,
@@ -29,7 +32,7 @@ const contractSchema = z.object({
     "proposal",
   ]),
   format: z.enum(["a4", "email"]),
-  status: z.enum(["draft", "sent", "printed"]),
+  status: z.enum(["draft", "sent", "printed", "signed"]),
   recipientType: z.enum(["client", "employee", "applicant", "custom"]),
   recipientId: z.string().optional(),
   recipientName: z.string().trim().min(1, "Please enter recipient name"),
@@ -125,8 +128,21 @@ export async function sendContractEmailAction(
     }
 
     const emailSubject = opts?.subject || doc.subject || doc.title || "Document from Senay Creatives";
-    const renderedHtml = renderEmailHtml(doc);
-    const plainText = `${doc.subject || doc.title}\n\n${doc.salutation}\n\n${doc.bodyMarkdown}\n\nBest regards,\n${doc.signerName}\n${doc.signerTitle}\nSenay Creatives`;
+
+    // If doc includes a signature line or doesn't have a token, create a signing token so recipient can sign
+    let currentDoc = doc;
+    let signingUrl: string | undefined;
+    if (doc.includeSignatureLine && !doc.signedAt) {
+      const updated = await createSigningToken(doc.id);
+      if (updated?.signingToken) {
+        currentDoc = updated;
+        signingUrl = `${SITE_URL}/sign/${updated.signingToken}`;
+      }
+    }
+
+    const renderedHtml = renderEmailHtml(currentDoc, { signingUrl });
+    const signPromptText = signingUrl ? `\n\nSign document online:\n${signingUrl}\n` : "";
+    const plainText = `${currentDoc.subject || currentDoc.title}\n\n${currentDoc.salutation}\n\n${currentDoc.bodyMarkdown}${signPromptText}\n\nBest regards,\n${currentDoc.signerName}\n${currentDoc.signerTitle}\nSenay Creatives`;
 
     await sendEmail({
       to: targetEmail,
@@ -137,7 +153,7 @@ export async function sendContractEmailAction(
 
     const now = new Date().toISOString();
     await saveContractDocument({
-      ...doc,
+      ...currentDoc,
       status: "sent",
       sentAt: now,
       sentTo: targetEmail,
@@ -148,5 +164,51 @@ export async function sendContractEmailAction(
   } catch (err: unknown) {
     console.error("sendContractEmailAction error:", err);
     return { ok: false, error: err instanceof Error ? err.message : "Failed to send email." };
+  }
+}
+
+/** Generate a signing token and email the recipient a "Sign Here" invitation link */
+export async function sendSigningRequestAction(
+  contractId: string,
+): Promise<ActionResponse<{ signingUrl: string; sentTo: string }>> {
+  await requireRole("manager", "admin");
+
+  try {
+    const doc = await getContractDocument(contractId);
+    if (!doc) return { ok: false, error: "Document not found." };
+
+    const targetEmail = doc.recipientEmail;
+    if (!targetEmail || !targetEmail.includes("@")) {
+      return { ok: false, error: "Recipient email is missing. Add it before requesting a signature." };
+    }
+
+    // Create / refresh the signing token (7-day expiry)
+    const updated = await createSigningToken(contractId);
+    if (!updated?.signingToken) {
+      return { ok: false, error: "Failed to generate signing token." };
+    }
+
+    const signingUrl = `${SITE_URL}/sign/${updated.signingToken}`;
+    const tpl = signingInvitation(
+      doc.recipientName,
+      doc.title,
+      doc.signerName,
+      doc.signerTitle,
+      signingUrl,
+    );
+
+    await sendEmail({ to: targetEmail, subject: tpl.subject, text: tpl.text, html: tpl.html });
+
+    // Notify the admin too
+    await sendNotification({
+      subject: `Signing request sent — ${doc.title}`,
+      text: `A signing request was sent to ${targetEmail} for "${doc.title}".\n\nSigning link: ${signingUrl}`,
+    }).catch(() => {}); // non-critical — don't fail if this errors
+
+    revalidatePath("/admin/contracts");
+    return { ok: true, signingUrl, sentTo: targetEmail };
+  } catch (err: unknown) {
+    console.error("sendSigningRequestAction error:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "Failed to send signing request." };
   }
 }

@@ -87,7 +87,7 @@ export function ProfileForm({
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       {/* SENDER & SIGNER PROFILE SECTION */}
-      <section className="rounded-2xl border border-line bg-paper p-6 shadow-sm">
+      <section className="rounded-2xl border border-line bg-paper p-5 sm:p-6 shadow-sm">
         <div className="flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-lg bg-brand text-white text-xs font-bold">
             ✎
@@ -157,7 +157,7 @@ export function ProfileForm({
           <button
             type="submit"
             disabled={senderPending}
-            className="justify-self-start rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-colors hover:bg-brand disabled:opacity-50"
+            className="w-full sm:w-auto justify-self-start rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-colors hover:bg-neutral-800 disabled:opacity-50 text-center"
           >
             {senderPending ? "Saving changes…" : "Save Sender Profile"}
           </button>
@@ -166,7 +166,7 @@ export function ProfileForm({
 
       {/* SECURITY & SMTP TESTING SECTION */}
       <div className="flex flex-col gap-8">
-        <section className="rounded-2xl border border-line bg-paper p-6 shadow-sm">
+        <section className="rounded-2xl border border-line bg-paper p-5 sm:p-6 shadow-sm">
           <h2 className="font-display text-lg font-semibold text-ink">Change password</h2>
           <form onSubmit={onPasswordSubmit} noValidate className="mt-4 grid gap-4">
             <Field label="Current password" htmlFor="p-current" required>
@@ -183,7 +183,7 @@ export function ProfileForm({
             <button
               type="submit"
               disabled={pending}
-              className="justify-self-start rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-colors hover:bg-brand disabled:opacity-50"
+              className="w-full sm:w-auto justify-self-start rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-colors hover:bg-neutral-800 disabled:opacity-50 text-center"
             >
               {pending ? "Saving…" : "Update password"}
             </button>
@@ -191,7 +191,7 @@ export function ProfileForm({
         </section>
 
         {isAdmin && (
-          <section className="rounded-2xl border border-line bg-paper p-6 shadow-sm">
+          <section className="rounded-2xl border border-line bg-paper p-5 sm:p-6 shadow-sm">
             <h2 className="font-display text-lg font-semibold text-ink">Email (SMTP) check</h2>
             <p className="mt-1 text-sm text-muted">
               Sends a live test message to your <code>NOTIFY_TO</code> address to confirm outbound email works.
@@ -199,7 +199,7 @@ export function ProfileForm({
             <button
               onClick={onTest}
               disabled={testing}
-              className="mt-4 rounded-full border border-line px-5 py-2.5 text-sm font-medium hover:border-ink hover:bg-paper-dim disabled:opacity-50 transition-colors"
+              className="w-full sm:w-auto mt-4 rounded-full border border-line px-5 py-2.5 text-sm font-medium hover:border-ink hover:bg-paper-dim disabled:opacity-50 transition-colors text-center"
             >
               {testing ? "Sending…" : "Send test email"}
             </button>

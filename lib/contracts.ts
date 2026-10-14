@@ -130,6 +130,61 @@ export async function deleteContractDocument(id: string): Promise<boolean> {
   return true;
 }
 
+/** Find a contract by its signing token. Returns null if not found or expired. */
+export async function getContractBySigningToken(
+  token: string,
+  opts: { allowExpired?: boolean } = {},
+): Promise<ContractDocument | null> {
+  const docs = await ensureStoreFile();
+  const doc = docs.find((d) => d.signingToken === token) ?? null;
+  if (!doc) return null;
+  if (!opts.allowExpired && doc.signingTokenExpiresAt) {
+    if (new Date(doc.signingTokenExpiresAt) < new Date()) return null;
+  }
+  return doc;
+}
+
+/**
+ * Generate a fresh signing token for a contract, store it, and return the updated doc.
+ * Tokens expire after 7 days by default.
+ */
+export async function createSigningToken(
+  contractId: string,
+  expiresInDays = 7,
+): Promise<ContractDocument | null> {
+  const doc = await getContractDocument(contractId);
+  if (!doc) return null;
+
+  const token = randomUUID();
+  const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString();
+
+  return saveContractDocument({
+    ...doc,
+    signingToken: token,
+    signingTokenExpiresAt: expiresAt,
+  });
+}
+
+/** Mark a contract as signed, storing the signature data URL and timestamp. */
+export async function markContractSigned(
+  token: string,
+  signatureDataUrl: string,
+  ip?: string,
+): Promise<ContractDocument | null> {
+  const doc = await getContractBySigningToken(token);
+  if (!doc) return null;
+  if (doc.signedAt) return null; // already signed
+
+  return saveContractDocument({
+    ...doc,
+    status: "signed",
+    signedAt: new Date().toISOString(),
+    signatureDataUrl,
+    signedByIp: ip,
+  });
+}
+
+
 /** Retrieve all available recipients across Clients, Users (Employees), and Applicants with fallback */
 export async function getAvailableRecipients(): Promise<RecipientOption[]> {
   const options: RecipientOption[] = [];

@@ -11,14 +11,14 @@ export function PrintActionBar() {
   }, []);
 
   return (
-    <div className="fixed top-4 right-4 z-50 print:hidden flex items-center gap-2 bg-black/85 backdrop-blur-md text-white p-2 rounded-xl shadow-2xl border border-white/10">
+    <div className="fixed top-3 inset-x-3 sm:inset-x-auto sm:right-4 z-50 print:hidden flex items-center justify-between sm:justify-start gap-2 bg-black/90 backdrop-blur-md text-white p-2 rounded-xl shadow-2xl border border-white/10">
       <button
         type="button"
         onClick={() => window.print()}
-        className="px-4 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 font-medium text-xs transition-colors flex items-center gap-1.5 shadow"
+        className="flex-1 sm:flex-none px-3.5 py-2 sm:py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 font-semibold sm:font-medium text-xs transition-colors flex items-center justify-center gap-1.5 shadow"
       >
         <span>🖨️</span>
-        <span>Print Document (A4)</span>
+        <span>Print (A4)</span>
       </button>
       <button
         type="button"

@@ -2,12 +2,17 @@ import type { Metadata } from "next";
 import { Container } from "@/components/ui/container";
 import { ProfileForm } from "@/components/admin/profile-form";
 import { requireUser } from "@/lib/auth";
+import { getUserSenderProfile } from "@/lib/profile";
 
 export const metadata: Metadata = { title: "Profile", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const user = await requireUser();
+  const senderProfile = await getUserSenderProfile(user.id, {
+    name: user.name,
+    email: user.email,
+  });
 
   return (
     <main className="flex-1">
@@ -17,7 +22,10 @@ export default async function ProfilePage() {
           {user.name} · {user.email} · <span className="capitalize">{user.role}</span>
         </p>
         <div className="mt-8">
-          <ProfileForm isAdmin={user.role === "admin"} />
+          <ProfileForm
+            isAdmin={user.role === "admin"}
+            initialSenderProfile={senderProfile}
+          />
         </div>
       </Container>
     </main>

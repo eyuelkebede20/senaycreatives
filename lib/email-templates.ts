@@ -18,7 +18,7 @@ const C = {
   muted: "#6f6e66",
   paper: "#f4f3ee",
   line: "#dcd9d0",
-  brand: "#1f4dff",
+  brand: "#15140f",
 };
 
 /** Escape untrusted text for safe inclusion in HTML. */
@@ -49,7 +49,7 @@ const socialLabel = (s: SocialLink) =>
 /** Shared HTML shell: logo header, body, and a branded signature footer. */
 function layout(headingHtml: string, bodyHtml: string): string {
   const socials = contact.socials
-    .map((s) => `<a href="${s.href}" style="color:${C.brand};text-decoration:none;margin-right:12px;">${socialLabel(s)}</a>`)
+    .map((s) => `<a href="${s.href}" style="color:${C.muted};text-decoration:none;margin-right:12px;">${socialLabel(s)}</a>`)
     .join("");
 
   return `<!doctype html>
@@ -72,7 +72,7 @@ function layout(headingHtml: string, bodyHtml: string): string {
           ${contact.address.city}, ${contact.address.country}<br>
           <a href="${contact.phoneHref}" style="color:${C.muted};text-decoration:none;">${contact.phone}</a> ·
           <a href="mailto:${contact.email}" style="color:${C.muted};text-decoration:none;">${contact.email}</a><br>
-          <a href="${contact.url}" style="color:${C.brand};text-decoration:none;">${contact.url.replace(/^https?:\/\//, "")}</a>
+          <a href="${contact.url}" style="color:${C.ink};text-decoration:none;font-weight:600;">${contact.url.replace(/^https?:\/\//, "")}</a>
           <div style="margin-top:10px;">${socials}</div>
         </td></tr>
       </table>
@@ -176,7 +176,7 @@ export function taskAssigned(
   if (opts.dueDate) body.push(`<strong>Due:</strong> ${esc(opts.dueDate)}`);
   if (opts.links && opts.links.length) {
     const items = opts.links
-      .map((l) => `<a href="${esc(l.url)}" style="color:#1f4dff;">${esc(l.label || l.url)}</a>`)
+      .map((l) => `<a href="${esc(l.url)}" style="color:${C.ink};text-decoration:underline;">${esc(l.label || l.url)}</a>`)
       .join(" · ");
     body.push(`<strong>Links:</strong> ${items}`);
   }
@@ -194,7 +194,7 @@ export function workerWelcome(
 ): EmailContent {
   return build(`Welcome to the ${contact.name} collective, ${name}`, `Welcome aboard, ${esc(name)} 🎉`, [
     `You've been brought into the <strong>${esc(guildLabel)}</strong> guild. Your handle is <strong>@${esc(username)}</strong> — it becomes your public portfolio once you have accepted work.`,
-    `Sign in to your workspace here: <a href="${esc(loginUrl)}" style="color:#1f4dff;">${esc(loginUrl)}</a>`,
+    `Sign in to your workspace here: <a href="${esc(loginUrl)}" style="color:${C.ink};text-decoration:underline;">${esc(loginUrl)}</a>`,
     `Temporary password: <strong>${esc(tempPassword)}</strong> — ask an admin to reset it for you any time.`,
     `We're glad you're here. Reply to this email with any questions.`,
   ]);

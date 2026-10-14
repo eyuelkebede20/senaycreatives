@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo, useEffect } from "react";
+import { useState, useTransition, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
@@ -15,6 +15,7 @@ import {
   type ContractStatus,
   type RecipientType,
   type RecipientOption,
+  type UserSenderProfile,
 } from "@/lib/contracts-shared";
 import {
   saveContractAction,
@@ -27,12 +28,14 @@ interface Props {
   initialDocuments: ContractDocument[];
   recipientOptions: RecipientOption[];
   currentUserName?: string;
+  currentSender?: UserSenderProfile;
 }
 
 export function ContractManager({
   initialDocuments,
   recipientOptions,
   currentUserName = "Eyuel Kebede",
+  currentSender,
 }: Props) {
   const [documents, setDocuments] = useState<ContractDocument[]>(initialDocuments);
   const [activeTab, setActiveTab] = useState<"composer" | "history">("composer");
@@ -54,6 +57,12 @@ export function ContractManager({
   const [recipientAddress, setRecipientAddress] = useState("Addis Ababa, Ethiopia");
   const [recipientPhone, setRecipientPhone] = useState("");
 
+  // Recipient search & recommendation popup state
+  const [recipientSearchQuery, setRecipientSearchQuery] = useState("");
+  const [isRecipientPopupOpen, setIsRecipientPopupOpen] = useState(false);
+  const [recipientFilterCategory, setRecipientFilterCategory] = useState<"all" | RecipientType>("all");
+  const recipientComboboxRef = useRef<HTMLDivElement>(null);
+
   const [date, setDate] = useState(() =>
     new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
   );
@@ -61,8 +70,10 @@ export function ContractManager({
   const [salutation, setSalutation] = useState("Dear Recipient,");
   const [bodyMarkdown, setBodyMarkdown] = useState(TEMPLATES.nda.defaultBody);
 
-  const [signerName, setSignerName] = useState(currentUserName);
-  const [signerTitle, setSignerTitle] = useState("Managing Director, Senay Creatives");
+  const [signerName, setSignerName] = useState(currentSender?.name || currentUserName);
+  const [signerTitle, setSignerTitle] = useState(currentSender?.title || "Managing Director, Senay Creatives");
+  const [signerEmail, setSignerEmail] = useState(currentSender?.email || "info@senaycreatives.com");
+  const [signerPhone, setSignerPhone] = useState(currentSender?.phone || "+251 976 105 215");
   const [includeSignatureLine, setIncludeSignatureLine] = useState(true);
 
   // UI state
@@ -81,6 +92,40 @@ export function ContractManager({
       return () => clearTimeout(timer);
     }
   }, [notice]);
+
+  // Click outside to close recipient suggestions popup
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        recipientComboboxRef.current &&
+        !recipientComboboxRef.current.contains(event.target as Node)
+      ) {
+        setIsRecipientPopupOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filtered recipient recommendations for popup combobox
+  const filteredRecipients = useMemo(() => {
+    const q = recipientSearchQuery.trim().toLowerCase();
+    return recipientOptions.filter((r) => {
+      const matchCategory =
+        recipientFilterCategory === "all" || r.type === recipientFilterCategory;
+      if (!matchCategory) return false;
+
+      if (!q) return true;
+
+      return (
+        r.name.toLowerCase().includes(q) ||
+        (r.email && r.email.toLowerCase().includes(q)) ||
+        (r.org && r.org.toLowerCase().includes(q)) ||
+        (r.phone && r.phone.toLowerCase().includes(q)) ||
+        (r.role && r.role.toLowerCase().includes(q))
+      );
+    });
+  }, [recipientOptions, recipientSearchQuery, recipientFilterCategory]);
 
   // Construct current document object for live preview
   const currentDoc: ContractDocument = useMemo(
@@ -104,6 +149,8 @@ export function ContractManager({
       bodyMarkdown,
       signerName,
       signerTitle,
+      signerEmail,
+      signerPhone,
       includeSignatureLine,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -128,6 +175,8 @@ export function ContractManager({
       bodyMarkdown,
       signerName,
       signerTitle,
+      signerEmail,
+      signerPhone,
       includeSignatureLine,
     ],
   );
@@ -149,28 +198,33 @@ export function ContractManager({
     setNotice({ type: "success", text: `Loaded template: ${t.name}` });
   }
 
-  // Handle recipient selector
-  function handleRecipientSelect(val: string) {
-    if (!val || val === "custom") {
-      setRecipientType("custom");
-      setRecipientId("");
-      return;
-    }
+  // Handle recipient combobox selection
+  function handleSelectRecipient(item: RecipientOption) {
+    setRecipientType(item.type);
+    setRecipientId(item.id);
+    setRecipientName(item.name);
+    if (item.email) setRecipientEmail(item.email);
+    if (item.org) setRecipientOrg(item.org);
+    if (item.phone) setRecipientPhone(item.phone);
 
-    const found = recipientOptions.find((r) => r.id === val);
-    if (found) {
-      setRecipientType(found.type);
-      setRecipientId(found.id);
-      setRecipientName(found.name);
-      if (found.email) setRecipientEmail(found.email);
-      if (found.org) setRecipientOrg(found.org);
-      if (found.phone) setRecipientPhone(found.phone);
+    setRecipientSearchQuery(item.name);
+    setIsRecipientPopupOpen(false);
 
-      // Adjust title & salutation
-      setSalutation(`Dear ${found.name.split(" ")[0]},`);
-      setTitle(`${TEMPLATES[docType].name} — ${found.org || found.name}`);
-      setNotice({ type: "success", text: `Selected recipient: ${found.name} (${found.type})` });
+    // Adjust title & salutation
+    const firstName = item.name.split(" ")[0];
+    setSalutation(`Dear ${firstName},`);
+    setTitle(`${TEMPLATES[docType].name} — ${item.org || item.name}`);
+    setNotice({ type: "success", text: `Selected recipient: ${item.name} (${item.type})` });
+  }
+
+  function handleSetCustomRecipient() {
+    setRecipientType("custom");
+    setRecipientId("");
+    if (recipientSearchQuery.trim() && recipientSearchQuery !== recipientName) {
+      setRecipientName(recipientSearchQuery.trim());
     }
+    setIsRecipientPopupOpen(false);
+    setNotice({ type: "success", text: "Switched to custom recipient manual entry." });
   }
 
   // Clause insertion helper
@@ -202,6 +256,8 @@ export function ContractManager({
         bodyMarkdown,
         signerName,
         signerTitle,
+        signerEmail,
+        signerPhone,
         includeSignatureLine,
       };
 
@@ -250,6 +306,8 @@ export function ContractManager({
           bodyMarkdown,
           signerName,
           signerTitle,
+          signerEmail,
+          signerPhone,
           includeSignatureLine,
         };
         const res = await saveContractAction(input);
@@ -314,6 +372,8 @@ export function ContractManager({
         bodyMarkdown,
         signerName,
         signerTitle,
+        signerEmail,
+        signerPhone,
         includeSignatureLine,
       };
 
@@ -367,9 +427,12 @@ export function ContractManager({
     setSubject(doc.subject || "");
     setSalutation(doc.salutation || "");
     setBodyMarkdown(doc.bodyMarkdown);
-    setSignerName(doc.signerName || currentUserName);
-    setSignerTitle(doc.signerTitle || "Managing Director, Senay Creatives");
+    setSignerName(doc.signerName || currentSender?.name || currentUserName);
+    setSignerTitle(doc.signerTitle || currentSender?.title || "Managing Director, Senay Creatives");
+    setSignerEmail(doc.signerEmail || currentSender?.email || "info@senaycreatives.com");
+    setSignerPhone(doc.signerPhone || currentSender?.phone || "+251 976 105 215");
     setIncludeSignatureLine(doc.includeSignatureLine ?? true);
+    setRecipientSearchQuery(doc.recipientName || "");
 
     setActiveTab("composer");
     setNotice({ type: "success", text: `Loaded "${doc.title}" into composer.` });
@@ -390,11 +453,14 @@ export function ContractManager({
     setRecipientOrg("");
     setRecipientAddress("");
     setRecipientPhone("");
+    setRecipientSearchQuery("");
     setSubject("Subject: Official Notice");
     setSalutation("Dear Sir/Madam,");
     setBodyMarkdown(TEMPLATES.blank.defaultBody);
-    setSignerName(currentUserName);
-    setSignerTitle("Managing Director, Senay Creatives");
+    setSignerName(currentSender?.name || currentUserName);
+    setSignerTitle(currentSender?.title || "Managing Director, Senay Creatives");
+    setSignerEmail(currentSender?.email || "info@senaycreatives.com");
+    setSignerPhone(currentSender?.phone || "+251 976 105 215");
     setIncludeSignatureLine(true);
     setNotice({ type: "success", text: "Started fresh document." });
   }
@@ -502,7 +568,7 @@ export function ContractManager({
         </div>
         <div className="rounded-xl border border-line bg-paper p-4">
           <div className="text-xs font-medium text-muted uppercase tracking-wider">Sent Emails</div>
-          <div className="mt-1 font-display text-2xl font-bold text-brand">{stats.sent}</div>
+          <div className="mt-1 font-display text-2xl font-bold text-ink">{stats.sent}</div>
         </div>
         <div className="rounded-xl border border-line bg-paper p-4">
           <div className="text-xs font-medium text-muted uppercase tracking-wider">Printed / A4</div>
@@ -549,7 +615,7 @@ export function ContractManager({
                     className={cn(
                       "px-3 py-1.5 text-xs font-medium rounded-lg border transition-all",
                       active
-                        ? "bg-brand text-white border-brand shadow-sm"
+                        ? "bg-ink text-white border-ink shadow-sm"
                         : "bg-paper-dim border-line text-ink-soft hover:border-ink hover:text-ink",
                     )}
                     title={item.description}
@@ -623,7 +689,7 @@ export function ContractManager({
                       status === "draft"
                         ? "bg-amber-100 text-amber-800"
                         : status === "sent"
-                        ? "bg-blue-100 text-blue-800"
+                        ? "bg-neutral-200 text-neutral-800"
                         : "bg-emerald-100 text-emerald-800",
                     )}
                   >
@@ -632,54 +698,220 @@ export function ContractManager({
                 </div>
               </div>
 
-              {/* Recipient Preset Selector */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  Recipient Fast Selector
-                </label>
-                <select
-                  value={recipientId || "custom"}
-                  onChange={(e) => handleRecipientSelect(e.target.value)}
-                  className="w-full text-sm rounded-xl border border-line bg-paper px-3 py-2 text-ink focus:border-brand focus:outline-none"
-                >
-                  <option value="custom">-- Custom / Manual Entry --</option>
-                  
-                  {recipientOptions.some((r) => r.type === "client") && (
-                    <optgroup label="💼 Clients">
-                      {recipientOptions
-                        .filter((r) => r.type === "client")
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} {c.org ? `(${c.org})` : ""} — {c.email}
-                          </option>
-                        ))}
-                    </optgroup>
+              {/* Recipient Search Bar with Popup Recommendation */}
+              <div className="space-y-1.5" ref={recipientComboboxRef}>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted">
+                    Recipient Search & Suggestions
+                  </label>
+                  {recipientId ? (
+                    <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Linked to {recipientType}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-muted">
+                      Custom entry
+                    </span>
                   )}
+                </div>
 
-                  {recipientOptions.some((r) => r.type === "employee") && (
-                    <optgroup label="👥 Employees / Team">
-                      {recipientOptions
-                        .filter((r) => r.type === "employee")
-                        .map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.name} ({u.role || "Team"}) — {u.email}
-                          </option>
-                        ))}
-                    </optgroup>
-                  )}
+                <div className="relative">
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-muted pointer-events-none">
+                      <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </span>
+                    <input
+                      type="text"
+                      value={recipientSearchQuery}
+                      onChange={(e) => {
+                        setRecipientSearchQuery(e.target.value);
+                        setIsRecipientPopupOpen(true);
+                      }}
+                      onFocus={() => setIsRecipientPopupOpen(true)}
+                      placeholder="Search recipient by name, company, email, or role..."
+                      className="w-full text-sm rounded-xl border border-line bg-paper pl-9 pr-16 py-2.5 text-ink placeholder:text-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                    />
+                    <div className="absolute right-2 flex items-center gap-1">
+                      {recipientSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRecipientSearchQuery("");
+                            setRecipientId("");
+                            setRecipientType("custom");
+                          }}
+                          className="p-1 rounded-md text-muted hover:text-ink hover:bg-paper-dim"
+                          title="Clear search"
+                        >
+                          <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsRecipientPopupOpen((prev) => !prev)}
+                        className="p-1 rounded-md text-muted hover:text-ink hover:bg-paper-dim"
+                        title={isRecipientPopupOpen ? "Close recommendations" : "Open recommendations"}
+                      >
+                        <svg
+                          className={cn("size-4 transition-transform", isRecipientPopupOpen && "rotate-180")}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
 
-                  {recipientOptions.some((r) => r.type === "applicant") && (
-                    <optgroup label="📋 Job Applicants">
-                      {recipientOptions
-                        .filter((r) => r.type === "applicant")
-                        .map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name} (Role: {a.role || "Applicant"}) — {a.email}
-                          </option>
-                        ))}
-                    </optgroup>
+                  {/* Recommendation Popup */}
+                  {isRecipientPopupOpen && (
+                    <div className="absolute z-50 left-0 right-0 mt-1.5 rounded-xl border border-line bg-paper shadow-xl overflow-hidden flex flex-col max-h-80">
+                      {/* Filter tabs header */}
+                      <div className="flex items-center gap-1.5 p-2 bg-paper-dim border-b border-line overflow-x-auto text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setRecipientFilterCategory("all")}
+                          className={cn(
+                            "px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-colors",
+                            recipientFilterCategory === "all"
+                              ? "bg-ink text-paper shadow-sm"
+                              : "text-ink-soft hover:text-ink hover:bg-paper",
+                          )}
+                        >
+                          All ({recipientOptions.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRecipientFilterCategory("client")}
+                          className={cn(
+                            "px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-colors",
+                            recipientFilterCategory === "client"
+                              ? "bg-ink text-white shadow-sm"
+                              : "text-ink-soft hover:text-ink hover:bg-paper",
+                          )}
+                        >
+                          💼 Clients ({recipientOptions.filter((r) => r.type === "client").length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRecipientFilterCategory("employee")}
+                          className={cn(
+                            "px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-colors",
+                            recipientFilterCategory === "employee"
+                              ? "bg-purple-600 text-white shadow-sm"
+                              : "text-ink-soft hover:text-ink hover:bg-paper",
+                          )}
+                        >
+                          👥 Team ({recipientOptions.filter((r) => r.type === "employee").length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRecipientFilterCategory("applicant")}
+                          className={cn(
+                            "px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-colors",
+                            recipientFilterCategory === "applicant"
+                              ? "bg-amber-600 text-white shadow-sm"
+                              : "text-ink-soft hover:text-ink hover:bg-paper",
+                          )}
+                        >
+                          📋 Applicants ({recipientOptions.filter((r) => r.type === "applicant").length})
+                        </button>
+                      </div>
+
+                      {/* Recipient Recommendations List */}
+                      <div className="overflow-y-auto divide-y divide-line/60">
+                        {/* Custom / Manual entry option */}
+                        <button
+                          type="button"
+                          onClick={handleSetCustomRecipient}
+                          className="w-full text-left px-3.5 py-2.5 hover:bg-paper-dim transition-colors flex items-center justify-between text-xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="size-6 rounded-md bg-paper-dim border border-line flex items-center justify-center font-bold text-ink">
+                              ✎
+                            </span>
+                            <div>
+                              <div className="font-semibold text-ink">Custom / Manual Recipient</div>
+                              <div className="text-muted text-[11px]">Type recipient details freely below</div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-paper-dim border border-line text-muted font-medium">
+                            Custom
+                          </span>
+                        </button>
+
+                        {filteredRecipients.length === 0 ? (
+                          <div className="p-4 text-center">
+                            <p className="text-xs text-muted">No saved contacts match &ldquo;{recipientSearchQuery}&rdquo;</p>
+                            {recipientSearchQuery.trim() && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRecipientName(recipientSearchQuery.trim());
+                                  setRecipientType("custom");
+                                  setRecipientId("");
+                                  setIsRecipientPopupOpen(false);
+                                }}
+                                className="mt-2 text-xs font-semibold text-ink-soft hover:underline"
+                              >
+                                Use &ldquo;{recipientSearchQuery.trim()}&rdquo; as Recipient Name
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          filteredRecipients.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => handleSelectRecipient(item)}
+                              className={cn(
+                                "w-full text-left px-3.5 py-2.5 hover:bg-paper-dim transition-colors flex items-start justify-between gap-3 text-xs",
+                                recipientId === item.id && "bg-ink/5 border-l-2 border-ink",
+                              )}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-ink truncate">{item.name}</span>
+                                  {item.org && (
+                                    <span className="text-muted text-[11px] truncate">
+                                      • {item.org}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[11px] text-muted">
+                                  {item.email && <span className="truncate">{item.email}</span>}
+                                  {item.phone && <span>• {item.phone}</span>}
+                                  {item.role && (
+                                    <span className="text-ink-soft bg-paper-dim px-1.5 py-0.5 rounded text-[10px]">
+                                      {item.role}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <span
+                                className={cn(
+                                  "text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider shrink-0",
+                                  item.type === "client"
+                                    ? "bg-neutral-200 text-neutral-800"
+                                    : item.type === "employee"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : "bg-amber-100 text-amber-800",
+                                )}
+                              >
+                                {item.type}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   )}
-                </select>
+                </div>
               </div>
 
               {/* Recipient Details Inputs */}
@@ -841,37 +1073,82 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                 />
               </div>
 
-              {/* Signer Information */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-line pt-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-ink-soft">Signer Name</label>
-                  <input
-                    type="text"
-                    value={signerName}
-                    onChange={(e) => setSignerName(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
-                  />
+              {/* Sender & Signer Information */}
+              <div className="space-y-3 border-t border-line pt-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted">
+                      Sender & Signer Information
+                    </label>
+                    <p className="text-[11px] text-muted">
+                      Pre-filled from your profile. Changes here apply to this document.
+                    </p>
+                  </div>
+                  <Link
+                    href="/admin/profile"
+                    className="text-xs text-ink-soft hover:underline flex items-center gap-1 font-medium bg-paper-dim px-2.5 py-1 rounded-lg border border-line transition-colors"
+                    title="Customize default signer profile in admin settings"
+                  >
+                    <span>Edit Profile</span>
+                    <svg className="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </Link>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-ink-soft">Signer Title / Role</label>
-                  <input
-                    type="text"
-                    value={signerTitle}
-                    onChange={(e) => setSignerTitle(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
-                  />
-                </div>
-                <div className="sm:col-span-2 flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="includeSig"
-                    checked={includeSignatureLine}
-                    onChange={(e) => setIncludeSignatureLine(e.target.checked)}
-                    className="size-4 rounded border-line text-brand focus:ring-brand"
-                  />
-                  <label htmlFor="includeSig" className="text-xs text-ink-soft cursor-pointer">
-                    Include formal signature line space in output
-                  </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-ink-soft">Signer Name</label>
+                    <input
+                      type="text"
+                      value={signerName}
+                      onChange={(e) => setSignerName(e.target.value)}
+                      placeholder="e.g. Eyuel Kebede"
+                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-ink-soft">Signer Title / Role</label>
+                    <input
+                      type="text"
+                      value={signerTitle}
+                      onChange={(e) => setSignerTitle(e.target.value)}
+                      placeholder="e.g. Managing Director, Senay Creatives"
+                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-ink-soft">Signer Direct Phone</label>
+                    <input
+                      type="text"
+                      value={signerPhone}
+                      onChange={(e) => setSignerPhone(e.target.value)}
+                      placeholder="e.g. +251 976 105 215"
+                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-ink-soft">Signer Direct Email</label>
+                    <input
+                      type="email"
+                      value={signerEmail}
+                      onChange={(e) => setSignerEmail(e.target.value)}
+                      placeholder="e.g. info@senaycreatives.com"
+                      className="w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                    />
+                  </div>
+                  <div className="sm:col-span-2 flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="includeSig"
+                      checked={includeSignatureLine}
+                      onChange={(e) => setIncludeSignatureLine(e.target.checked)}
+                      className="size-4 rounded border-line text-brand focus:ring-brand"
+                    />
+                    <label htmlFor="includeSig" className="text-xs text-ink-soft cursor-pointer">
+                      Include formal signature line space in output
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -881,7 +1158,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                   type="button"
                   disabled={isPending}
                   onClick={handleSaveDraft}
-                  className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-ink text-paper text-sm font-semibold hover:bg-brand transition-colors disabled:opacity-50"
+                  className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-ink text-paper text-sm font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50"
                 >
                   <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -906,7 +1183,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                   type="button"
                   disabled={isPending}
                   onClick={handleOpenSendModal}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-blue-600 transition-colors"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-ink text-white text-sm font-semibold hover:bg-neutral-800 transition-colors"
                 >
                   <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -1080,7 +1357,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                       <td className="py-3.5 px-3">
                         <div className="font-medium text-ink">{doc.recipientName || "—"}</div>
                         {doc.recipientOrg && <div className="text-xs text-muted">{doc.recipientOrg}</div>}
-                        {doc.recipientEmail && <div className="text-xs text-brand">{doc.recipientEmail}</div>}
+                        {doc.recipientEmail && <div className="text-xs text-muted">{doc.recipientEmail}</div>}
                       </td>
                       <td className="py-3.5 px-3">
                         <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-paper-dim border border-line text-ink-soft">
@@ -1099,7 +1376,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                             doc.status === "draft"
                               ? "bg-amber-100 text-amber-800"
                               : doc.status === "sent"
-                              ? "bg-blue-100 text-blue-800"
+                              ? "bg-neutral-200 text-neutral-800"
                               : "bg-emerald-100 text-emerald-800",
                           )}
                         >
@@ -1207,7 +1484,7 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                 type="button"
                 disabled={isPending}
                 onClick={handleSendEmail}
-                className="px-5 py-2 text-sm font-semibold rounded-xl bg-brand text-white hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2 text-sm font-semibold rounded-xl bg-ink text-white hover:bg-neutral-800 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {isPending ? "Sending..." : "Send Now"}
               </button>

@@ -24,6 +24,14 @@ export interface RecipientOption {
   role?: string;
 }
 
+export interface UserSenderProfile {
+  name: string;
+  email: string;
+  title: string;
+  phone: string;
+  department: string;
+}
+
 export interface ContractDocument {
   id: string;
   title: string;
@@ -47,6 +55,8 @@ export interface ContractDocument {
 
   signerName: string;
   signerTitle: string;
+  signerEmail?: string;
+  signerPhone?: string;
   includeSignatureLine: boolean;
 
   createdAt: string;
@@ -67,8 +77,8 @@ export const BRAND_TOKENS = {
   paper: "#f4f3ee",
   paperDim: "#ebe9e2",
   line: "#dcd9d0",
-  brand: "#1f4dff",
-  brandInk: "#0a1f8a",
+  brand: "#15140f",
+  brandInk: "#15140f",
   white: "#ffffff",
   phonePrimary: "+251 976 105 215",
   phoneSecondary: "+251 954 956 260",
@@ -361,7 +371,7 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    border-bottom: 1.2mm solid ${BRAND_TOKENS.brand};
+    border-bottom: 1.2mm solid ${BRAND_TOKENS.ink};
   }
   .lh-logo {
     display: flex;
@@ -392,7 +402,7 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
     line-height: 1;
     color: ${BRAND_TOKENS.ink};
   }
-  .wm span { color: ${BRAND_TOKENS.brand}; }
+  .wm span { color: inherit; }
   
   .lh-contact {
     font-size: 8.5pt;
@@ -401,7 +411,7 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
     text-align: right;
   }
   .lh-contact .row { justify-content: flex-end; }
-  .lh-contact .ico { color: ${BRAND_TOKENS.brand}; }
+  .lh-contact .ico { color: ${BRAND_TOKENS.muted}; }
 
   /* BODY */
   .lh-body {
@@ -493,7 +503,7 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
     font-size: 9.5pt;
     letter-spacing: -0.01em;
   }
-  .lh-footer .ico { color: #6ea8fe; }
+  .lh-footer .ico { color: #d9e0dc; }
   .lh-footer .right .row { justify-content: flex-end; }
   .lh-footer a { color: inherit; text-decoration: none; }
 
@@ -568,6 +578,11 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
       </div>
       <div class="signer-name">${doc.signerName || "Eyuel Kebede"}</div>
       <div class="signer-title">${doc.signerTitle || "Managing Director, Senay Creatives"}</div>
+      ${doc.signerEmail || doc.signerPhone ? `
+        <div style="font-size: 8.5pt; color: ${BRAND_TOKENS.muted}; margin-top: 1.5mm;">
+          ${[doc.signerEmail, doc.signerPhone].filter(Boolean).join(" &nbsp;·&nbsp; ")}
+        </div>
+      ` : ""}
     </div>
   </div>
 
@@ -612,7 +627,7 @@ export function renderEmailHtml(doc: ContractDocument): string {
 
         <!-- ============ HEADER ============ -->
         <tr>
-          <td style="padding:26px 30px 18px 30px; border-bottom:4px solid ${BRAND_TOKENS.brand};">
+          <td style="padding:26px 30px 18px 30px; border-bottom:4px solid ${BRAND_TOKENS.ink};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td align="left" valign="middle" style="font-size:22px; font-weight:700; color:${BRAND_TOKENS.ink};">
@@ -620,7 +635,7 @@ export function renderEmailHtml(doc: ContractDocument): string {
                     <span style="display:inline-block; vertical-align:middle; width:34px; height:34px; border-radius:50%; border:1px solid ${BRAND_TOKENS.line}; background-color:${BRAND_TOKENS.paper}; text-align:center; line-height:34px; margin-right:8px; overflow:hidden;">
                       <img src="${BRAND_TOKENS.logoUrl}" alt="Senay Creatives" height="24" width="24" style="height:24px; width:24px; border:0; vertical-align:middle; display:inline-block; margin-top:5px;">
                     </span>
-                    <span style="vertical-align:middle; letter-spacing:-0.02em;">Senay<span style="color:${BRAND_TOKENS.brand};">Creatives</span></span>
+                    <span style="vertical-align:middle; letter-spacing:-0.02em; color:${BRAND_TOKENS.ink};">Senay<span>Creatives</span></span>
                   </a>
                 </td>
                 <td align="right" valign="middle" style="font-size:12px; line-height:18px; color:${BRAND_TOKENS.muted};">
@@ -656,6 +671,11 @@ export function renderEmailHtml(doc: ContractDocument): string {
               <p style="margin:0 0 4px 0; font-size:14px; color:${BRAND_TOKENS.muted};">Best regards,</p>
               <p style="margin:0; font-weight:700; font-size:15px; color:${BRAND_TOKENS.ink};">${doc.signerName || "Eyuel Kebede"}</p>
               <p style="margin:0; font-size:13px; color:${BRAND_TOKENS.muted};">${doc.signerTitle || "Managing Director, Senay Creatives"}</p>
+              ${doc.signerEmail || doc.signerPhone ? `
+                <p style="margin:4px 0 0 0; font-size:12px; color:${BRAND_TOKENS.muted};">
+                  ${[doc.signerEmail, doc.signerPhone].filter(Boolean).join(" &nbsp;·&nbsp; ")}
+                </p>
+              ` : ""}
             </div>
           </td>
         </tr>
@@ -671,7 +691,7 @@ export function renderEmailHtml(doc: ContractDocument): string {
               <a href="tel:${BRAND_TOKENS.phoneSecondary.replace(/\s+/g, '')}" style="color:#d9e0dc; text-decoration:none;">${BRAND_TOKENS.phoneSecondary}</a>
             </p>
             <p style="margin:0;">&#9993;&nbsp; <a href="mailto:${BRAND_TOKENS.email}" style="color:#d9e0dc; text-decoration:none;">${BRAND_TOKENS.email}</a></p>
-            <p style="margin:4px 0 0 0;">&#127760;&nbsp; <a href="https://${BRAND_TOKENS.website}" style="color:#6ea8fe; text-decoration:none; font-weight:600;">${BRAND_TOKENS.website}</a></p>
+            <p style="margin:4px 0 0 0;">&#127760;&nbsp; <a href="https://${BRAND_TOKENS.website}" style="color:#ffffff; text-decoration:underline; font-weight:600;">${BRAND_TOKENS.website}</a></p>
           </td>
         </tr>
         <tr>

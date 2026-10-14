@@ -43,6 +43,8 @@ const contractSchema = z.object({
   bodyMarkdown: z.string().trim().min(5, "Please provide the document body text"),
   signerName: z.string().trim().min(1, "Please provide the signer name"),
   signerTitle: z.string().trim().min(1, "Please provide the signer title"),
+  signerEmail: z.string().trim().email("Invalid signer email").optional().or(z.literal("")),
+  signerPhone: z.string().trim().max(40).optional().default(""),
   includeSignatureLine: z.boolean().default(true),
 });
 

@@ -15,7 +15,7 @@ export function PrintActionBar() {
       <button
         type="button"
         onClick={() => window.print()}
-        className="px-4 py-1.5 rounded-lg bg-[#1f4dff] hover:bg-blue-600 font-medium text-xs text-white transition-colors flex items-center gap-1.5 shadow"
+        className="px-4 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 font-medium text-xs transition-colors flex items-center gap-1.5 shadow"
       >
         <span>🖨️</span>
         <span>Print Document (A4)</span>

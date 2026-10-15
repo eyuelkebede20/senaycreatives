@@ -8,6 +8,7 @@ import {
   BRAND_TOKENS,
   renderA4LetterheadHtml,
   renderEmailHtml,
+  getDocumentPageCount,
   type ContractDocument,
   type ContractDocumentInput,
   type ContractDocType,
@@ -1213,6 +1214,15 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                   >
                     + Ethiopian Law
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => insertClause("\n\n<!-- pagebreak -->\n\n")}
+                    className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-100 border border-emerald-300 text-emerald-800 hover:bg-emerald-200 transition-colors font-semibold flex items-center gap-1 shadow-xs"
+                    title="Insert a clean page break for multi-page A4 documents"
+                  >
+                    <span>📄</span>
+                    <span>+ Page Break</span>
+                  </button>
                 </div>
 
                 <textarea
@@ -1490,11 +1500,14 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                     <iframe
                       title="Letterhead Preview"
                       srcDoc={renderedHtml}
+                      style={{
+                        height: format === "a4" ? `${getDocumentPageCount(currentDoc) * 315 + 20}mm` : "720px",
+                      }}
                       className={cn(
-                        "bg-white shadow-xl transition-all border-0",
+                        "transition-all border-0",
                         format === "a4"
-                          ? "w-[210mm] min-h-[297mm] rounded-none"
-                          : "w-[620px] min-h-[580px] rounded-xl",
+                          ? "w-[210mm] bg-transparent rounded-none"
+                          : "w-[620px] rounded-xl bg-white shadow-xl",
                       )}
                     />
                   </div>
@@ -1867,7 +1880,10 @@ This document shall be governed by and interpreted pursuant to the laws of the F
                   id="sc-direct-print-frame"
                   title="Print Preview Frame"
                   srcDoc={format === "a4" ? renderedHtml : renderA4LetterheadHtml(currentDoc)}
-                  className="w-[210mm] h-[297mm] max-h-[297mm] bg-white shadow-2xl border-0 overflow-hidden"
+                  style={{
+                    height: `${getDocumentPageCount(currentDoc) * 315 + 20}mm`,
+                  }}
+                  className="w-[210mm] bg-transparent border-0"
                 />
               </div>
             </div>

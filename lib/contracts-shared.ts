@@ -76,16 +76,17 @@ export type ContractDocumentInput = Omit<ContractDocument, "id" | "createdAt" | 
   id?: string;
 };
 
-// Design tokens matching Senay Creatives design system in app/globals.css
+// Design tokens matching Senay Creatives design system and contract.md
 export const BRAND_TOKENS = {
-  ink: "#15140f",
-  inkSoft: "#45443d",
-  muted: "#6f6e66",
+  ink: "#1c2321",
+  inkSoft: "#333333",
+  muted: "#555555",
   paper: "#f4f3ee",
-  paperDim: "#ebe9e2",
+  paperDim: "#e8e8e6",
   line: "#dcd9d0",
-  brand: "#15140f",
-  brandInk: "#15140f",
+  emerald: "#1f6f5c",
+  emeraldLight: "#6fcfb5",
+  darkFooter: "#16201d",
   white: "#ffffff",
   phonePrimary: "+251 976 105 215",
   phoneSecondary: "+251 954 956 260",
@@ -139,6 +140,8 @@ Confidentiality obligations do not apply to information that becomes publicly av
 
 If disclosure is legally required, the receiving Party may disclose only what is required by law and shall provide prior notice where legally permitted.
 
+<!-- pagebreak -->
+
 5. DURATION AND RETURN OF INFORMATION
 This Agreement applies to confidential information disclosed in connection with the Parties’ business relationship, including earlier disclosures made in confidence. Confidentiality obligations shall continue for two (2) years from the date of each disclosure. Information protected as a trade secret shall remain protected for as long as it qualifies for such protection under applicable law.
 
@@ -152,6 +155,8 @@ This Agreement shall be governed by the laws of the Federal Democratic Republic 
 SERVICE DETAILS AND SIGNATURES
 Service(s) to be provided by Senay Creatives:
 • Software engineering, technology solutions, digital marketing, branding, content creation, and business growth support.
+
+---
 
 PARTY A — SENAY CREATIVES
 Representative’s Name: Eyuel Kebede
@@ -299,6 +304,15 @@ export function formatBodyToHtml(markdown: string): string {
       continue;
     }
 
+    // Skip explicit pagebreak directives inside individual page rendering
+    if (/^<!--\s*pagebreak\s*-->$/i.test(trimmed) || trimmed === "---pagebreak---" || trimmed === "[pagebreak]" || trimmed === "\\pagebreak") {
+      if (inList) {
+        htmlParts.push("</ul>");
+        inList = false;
+      }
+      continue;
+    }
+
     // Dividers (---, ———, ⸻⸻)
     if (trimmed === "---" || trimmed === "———" || trimmed === "⸻⸻" || trimmed === "⸻" || /^[-—⸻]{3,}$/.test(trimmed)) {
       if (inList) {
@@ -352,11 +366,153 @@ export function formatBodyToHtml(markdown: string): string {
   return htmlParts.join("\n");
 }
 
-/** Render pure, print-ready A4 Letterhead HTML strictly adhering to Senay Creatives design tokens. */
+/**
+ * Splits document markdown into discrete pages for A4 printing.
+ * Respects explicit breaks (<!-- pagebreak -->, ---pagebreak---, etc.)
+ * or automatically paginates long text so nothing overflows 297mm.
+ */
+export function splitBodyIntoPages(bodyMarkdown: string): string[] {
+  if (!bodyMarkdown) return [""];
+
+  // 1. Check for explicit page breaks
+  const explicitBreakRegex = /(?:<!--\s*pagebreak\s*-->|---pagebreak---|\[pagebreak\]|\\pagebreak)/i;
+  if (explicitBreakRegex.test(bodyMarkdown)) {
+    const rawPages = bodyMarkdown.split(explicitBreakRegex);
+    const cleaned = rawPages.map((p) => p.trim()).filter((p, idx) => p.length > 0 || idx === 0);
+    return cleaned.length > 0 ? cleaned : [""];
+  }
+
+  // 2. Fits on single page? (header 28mm, footer 18mm, meta & recipient leave ~1650 chars capacity)
+  if (bodyMarkdown.length <= 1650) {
+    return [bodyMarkdown];
+  }
+
+  // 3. Fallback auto-chunking for long text without explicit page break
+  const paragraphs = bodyMarkdown.split(/\n\s*\n/);
+  const pages: string[] = [];
+  let currentPageParts: string[] = [];
+  let currentLength = 0;
+  let maxCharLimit = 1500;
+
+  for (let i = 0; i < paragraphs.length; i++) {
+    const p = paragraphs[i].trim();
+    if (!p) continue;
+
+    const pLen = p.length;
+    if (currentPageParts.length > 0 && currentLength + pLen > maxCharLimit) {
+      pages.push(currentPageParts.join("\n\n"));
+      currentPageParts = [p];
+      currentLength = pLen;
+      maxCharLimit = 2200;
+    } else {
+      currentPageParts.push(p);
+      currentLength += pLen;
+    }
+  }
+
+  if (currentPageParts.length > 0) {
+    pages.push(currentPageParts.join("\n\n"));
+  }
+
+  return pages.length > 0 ? pages : [bodyMarkdown];
+}
+
+/** Get total page count for an A4 contract document. */
+export function getDocumentPageCount(doc: ContractDocument): number {
+  return splitBodyIntoPages(doc.bodyMarkdown).length;
+}
+
+/** Render pure, print-ready A4 Letterhead HTML strictly adhering to Senay Creatives design tokens and contract.md. */
 export function renderA4LetterheadHtml(doc: ContractDocument): string {
-  const bodyHtml = formatBodyToHtml(doc.bodyMarkdown);
+  const pages = splitBodyIntoPages(doc.bodyMarkdown);
+  const totalPages = Math.max(1, pages.length);
   const dateFormatted = doc.date || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-  
+
+  const renderHeader = () => `
+  <div class="lh-header">
+    <div class="lh-logo">
+      <img src="${BRAND_TOKENS.logoUrl}" alt="SenayCreatives logo" onerror="this.style.display='none'">
+      <div class="wm">Senay<span>Creatives</span></div>
+    </div>
+    <div class="lh-contact">
+      <div class="row"><span>${BRAND_TOKENS.city}</span><svg class="ico"><use href="#i-pin"/></svg></div>
+      <div class="row"><span>${BRAND_TOKENS.phonePrimary}</span><svg class="ico"><use href="#i-phone"/></svg></div>
+      <div class="row"><span>${BRAND_TOKENS.phoneSecondary}</span><svg class="ico"><use href="#i-phone"/></svg></div>
+      <div class="row"><span>${BRAND_TOKENS.email}</span><svg class="ico"><use href="#i-mail"/></svg></div>
+    </div>
+  </div>`;
+
+  const renderFooter = (pageIndex: number) => `
+  <div class="lh-footer">
+    <div class="lh-footer-left">
+      <strong>Senay Creatives</strong>
+      <div class="row"><svg class="ico"><use href="#i-pin"/></svg><span>${BRAND_TOKENS.city}</span></div>
+      <div class="row"><svg class="ico"><use href="#i-globe"/></svg><span>${BRAND_TOKENS.website}</span></div>
+    </div>
+    <div class="lh-footer-center">
+      <span class="page-number-badge">Page ${pageIndex + 1} of ${totalPages}</span>
+    </div>
+    <div class="lh-footer-right">
+      <div class="row"><span>${BRAND_TOKENS.phonePrimary} &nbsp;|&nbsp; ${BRAND_TOKENS.phoneSecondary}</span><svg class="ico"><use href="#i-phone"/></svg></div>
+      <div class="row"><span>${BRAND_TOKENS.email}</span><svg class="ico"><use href="#i-mail"/></svg></div>
+    </div>
+  </div>`;
+
+  const renderedPagesHtml = pages.map((pageMarkdown, index) => {
+    const isFirstPage = index === 0;
+    const isLastPage = index === totalPages - 1;
+    const pageHtml = formatBodyToHtml(pageMarkdown);
+
+    return `
+    <div class="a4-page" data-page="${index + 1}">
+      ${renderHeader()}
+
+      <div class="lh-body">
+        ${isFirstPage ? `
+          <div class="meta-bar">
+            <div class="date">${dateFormatted}</div>
+            ${doc.refNumber ? `<div class="meta-ref">Ref: ${doc.refNumber}</div>` : ""}
+          </div>
+          <div class="recipient">
+            <strong>${doc.recipientName || "Valued Recipient"}</strong><br>
+            ${doc.recipientOrg ? `${doc.recipientOrg}<br>` : ""}
+            ${doc.recipientAddress ? `${doc.recipientAddress}<br>` : ""}
+            ${doc.recipientEmail ? `${doc.recipientEmail}` : ""}
+          </div>
+          ${doc.subject ? `<div class="subject">${doc.subject}</div>` : ""}
+          ${doc.salutation ? `<div class="salutation">${doc.salutation}</div>` : ""}
+        ` : `
+          <div class="continuation-bar">
+            <span class="cont-title">${doc.subject || doc.title || "Official Document"} <em>(Continued)</em></span>
+            ${doc.refNumber ? `<span class="cont-ref">Ref: ${doc.refNumber}</span>` : ""}
+          </div>
+        `}
+
+        <div class="lh-content">
+          ${pageHtml}
+        </div>
+
+        ${isLastPage && !doc.bodyMarkdown.includes("PARTY A") ? `
+          <div class="signoff">
+            <p style="margin-bottom: 2mm;">Sincerely,</p>
+            <div class="signature-space">
+              ${doc.includeSignatureLine ? '<div class="sig-line"></div>' : ""}
+            </div>
+            <div class="signer-name">${doc.signerName || "Eyuel Kebede"}</div>
+            <div class="signer-title">${doc.signerTitle || "Managing Director, Senay Creatives"}</div>
+            ${doc.signerEmail || doc.signerPhone ? `
+              <div class="signer-contact">
+                ${[doc.signerEmail, doc.signerPhone].filter(Boolean).join(" &nbsp;·&nbsp; ")}
+              </div>
+            ` : ""}
+          </div>
+        ` : ""}
+      </div>
+
+      ${renderFooter(index)}
+    </div>`;
+  }).join("\n");
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -364,33 +520,94 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${doc.title || "Senay Creatives – Official Letterhead"}</title>
 <style>
-  @page { size: A4 portrait; margin: 0; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-    background: #e8e8e6;
+  @page {
+    size: A4 portrait;
+    margin: 0 !important;
+  }
+  * {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: ${BRAND_TOKENS.ink};
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #e8e8e6;
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1c2321;
     font-size: 9.8pt;
     line-height: 1.5;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  .page {
-    width: 210mm;
-    min-height: 297mm;
-    margin: 8mm auto;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    position: relative;
-    overflow: visible;
+
+  /* SCREEN PREVIEW */
+  @media screen {
+    body {
+      background: #e8e8e6;
+      padding: 10mm 0;
+    }
+    .pages-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10mm;
+      width: 100%;
+    }
+    .a4-page {
+      width: 210mm;
+      height: 297mm;
+      min-height: 297mm;
+      max-height: 297mm;
+      background: #ffffff;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-sizing: border-box;
+      overflow: hidden;
+      position: relative;
+    }
   }
+
+  /* PRINT PREVIEW & DIRECT BROWSER PRINT */
+  @media print {
+    html, body {
+      width: 210mm !important;
+      background: #ffffff !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    .pages-container {
+      display: block !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      gap: 0 !important;
+    }
+    .a4-page {
+      width: 210mm !important;
+      height: 297mm !important;
+      min-height: 297mm !important;
+      max-height: 297mm !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      box-shadow: none !important;
+      border: none !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
+      page-break-after: always !important;
+      break-after: page !important;
+    }
+    .a4-page:last-child {
+      page-break-after: auto !important;
+      break-after: auto !important;
+    }
+  }
+
   .ico {
     width: 3.4mm;
     height: 3.4mm;
@@ -403,51 +620,22 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
     display: inline-block;
     vertical-align: middle;
   }
-  .row { display: flex; align-items: center; gap: 1.8mm; }
-
-  /* TABLE WRAPPER FOR CONTINUOUS MULTI-PAGE PRINTING */
-  table.lh-print-table {
-    width: 100%;
-    border-collapse: collapse;
-    border-spacing: 0;
-    margin: 0;
-    padding: 0;
-  }
-  table.lh-print-table > thead,
-  table.lh-print-table > tfoot,
-  table.lh-print-table > tbody {
-    margin: 0;
-    padding: 0;
-    border: none;
-  }
-  table.lh-print-table > thead > tr > td,
-  table.lh-print-table > tfoot > tr > td,
-  table.lh-print-table > tbody > tr > td {
-    padding: 0;
-    margin: 0;
-    border: none;
-    vertical-align: top;
-  }
-
-  .lh-header-space {
-    height: 28mm;
-    width: 100%;
-  }
-  .lh-footer-space {
-    height: 18mm;
-    width: 100%;
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
   }
 
   /* HEADER */
-  .lh-header-print {
+  .lh-header {
     box-sizing: border-box;
     width: 100%;
     height: 28mm;
-    padding: 8mm 18mm 3mm;
+    padding: 9mm 18mm 4mm;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    border-bottom: 0.8mm solid ${BRAND_TOKENS.ink};
+    border-bottom: 1.2mm solid #1f6f5c;
     background: #ffffff;
     flex-shrink: 0;
   }
@@ -456,52 +644,46 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
     align-items: center;
     gap: 3mm;
   }
-  .logo-badge {
-    width: 9.5mm;
-    height: 9.5mm;
-    border-radius: 50%;
-    border: 0.8px solid ${BRAND_TOKENS.line};
-    background: ${BRAND_TOKENS.paper};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-  .logo-badge img {
-    width: 7.5mm;
-    height: 7.5mm;
-    object-fit: contain;
+  .lh-logo img {
+    height: 11mm;
+    width: auto;
     display: block;
   }
   .wm {
-    font-size: 19pt;
+    font-size: 20pt;
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
     line-height: 1;
-    color: ${BRAND_TOKENS.ink};
+    color: #1c2321;
   }
-  .wm span { color: inherit; }
-  
+  .wm span {
+    color: #1f6f5c;
+  }
   .lh-contact {
-    font-size: 8pt;
-    line-height: 1.5;
-    color: ${BRAND_TOKENS.muted};
+    font-size: 8.5pt;
+    line-height: 1.55;
+    color: #333333;
     text-align: right;
   }
-  .lh-contact .row { justify-content: flex-end; }
-  .lh-contact .ico { color: ${BRAND_TOKENS.muted}; }
+  .lh-contact .row {
+    justify-content: flex-end;
+  }
+  .lh-contact .ico {
+    color: #1f6f5c;
+  }
 
   /* BODY */
   .lh-body {
     flex: 1 1 auto;
-    padding: 6mm 18mm 4mm;
+    padding: 7mm 18mm 4mm;
     font-size: 9.8pt;
     line-height: 1.5;
-    color: ${BRAND_TOKENS.ink};
+    color: #1c2321;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    overflow: visible;
+    overflow: hidden;
+    box-sizing: border-box;
   }
   .lh-body p {
     margin-bottom: 2.8mm;
@@ -513,60 +695,81 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   .lh-body li {
     margin-bottom: 1mm;
   }
-  .lh-body h1, .lh-body h2, .lh-body h3 {
-    margin-top: 3mm;
-    margin-bottom: 2mm;
-    font-weight: 700;
-  }
   .meta-bar {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 4mm;
-    padding-bottom: 2.5mm;
-    border-bottom: 1px dashed ${BRAND_TOKENS.line};
+    margin-bottom: 3.5mm;
+    padding-bottom: 2mm;
+    border-bottom: 1px dashed #dcd9d0;
     flex-shrink: 0;
   }
   .meta-ref {
     font-size: 8pt;
     font-family: monospace;
-    color: ${BRAND_TOKENS.muted};
+    color: #666666;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
   .date {
     font-weight: 600;
-    color: ${BRAND_TOKENS.inkSoft};
+    color: #333333;
     font-size: 9pt;
   }
   .recipient {
-    margin-bottom: 4mm;
+    margin-bottom: 3.5mm;
     line-height: 1.4;
     font-size: 9.5pt;
-    color: ${BRAND_TOKENS.inkSoft};
+    color: #333333;
     flex-shrink: 0;
   }
   .recipient strong {
-    color: ${BRAND_TOKENS.ink};
+    color: #1c2321;
     font-size: 10pt;
   }
   .subject {
     font-weight: 700;
     font-size: 11pt;
-    margin-bottom: 3.5mm;
-    color: ${BRAND_TOKENS.ink};
+    margin-bottom: 3mm;
+    color: #1c2321;
     letter-spacing: -0.01em;
     flex-shrink: 0;
   }
   .salutation {
     font-weight: 600;
-    margin-bottom: 3mm;
+    margin-bottom: 2.5mm;
     flex-shrink: 0;
+  }
+  .continuation-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 8.5pt;
+    color: #555555;
+    border-bottom: 1px dashed #dcd9d0;
+    padding-bottom: 2mm;
+    margin-bottom: 4mm;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .continuation-bar em {
+    font-style: italic;
+    color: #1f6f5c;
+    font-weight: 600;
+  }
+  .cont-ref {
+    font-family: monospace;
+    font-size: 8pt;
+    text-transform: uppercase;
+    color: #666666;
+  }
+  .lh-content {
+    flex: 1 1 auto;
+    overflow: hidden;
   }
   .signoff {
     margin-top: auto;
-    padding-top: 3mm;
-    page-break-inside: avoid;
+    padding-top: 2mm;
     flex-shrink: 0;
   }
   .signature-space {
@@ -577,191 +780,82 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   }
   .sig-line {
     width: 55mm;
-    border-bottom: 1px solid ${BRAND_TOKENS.line};
+    border-bottom: 1px solid #1c2321;
     margin-bottom: 2mm;
   }
   .signer-name {
     font-weight: 700;
-    font-size: 10pt;
-    color: ${BRAND_TOKENS.ink};
+    font-size: 9.8pt;
+    color: #1c2321;
   }
   .signer-title {
-    font-size: 9pt;
-    color: ${BRAND_TOKENS.muted};
+    font-size: 8.8pt;
+    color: #555555;
+  }
+  .signer-contact {
+    font-size: 8.2pt;
+    color: #666666;
+    margin-top: 1mm;
   }
 
   /* FOOTER */
-  .lh-footer-print {
+  .lh-footer {
     box-sizing: border-box;
     width: 100%;
     height: 18mm;
-    background: ${BRAND_TOKENS.ink};
+    background: #16201d;
     color: #d9e0dc;
-    padding: 4mm 18mm;
+    padding: 3.5mm 18mm;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8mm;
+    gap: 6mm;
     font-size: 8pt;
     line-height: 1.5;
     flex-shrink: 0;
   }
-  .lh-footer-print strong {
+  .lh-footer strong {
     color: #ffffff;
-    font-size: 9pt;
+    font-size: 9.2pt;
     letter-spacing: -0.01em;
   }
-  .lh-footer-print .ico { color: #d9e0dc; }
-  .lh-footer-print .right .row { justify-content: flex-end; }
-  .lh-footer-print a { color: inherit; text-decoration: none; }
-
-  /* SCREEN PRESENTATION */
-  @media screen {
-    .lh-header-print {
-      position: static;
-    }
-    .lh-footer-print {
-      position: static;
-      margin-top: auto;
-    }
-    .lh-header-space,
-    .lh-footer-space {
-      display: none;
-    }
-    table.lh-print-table {
-      flex: 1 1 auto;
-      display: flex;
-      flex-direction: column;
-    }
-    table.lh-print-table tbody {
-      flex: 1 1 auto;
-      display: flex;
-      flex-direction: column;
-    }
-    table.lh-print-table tbody tr,
-    table.lh-print-table tbody td {
-      flex: 1 1 auto;
-      display: flex;
-      flex-direction: column;
-    }
-    .lh-body {
-      flex: 1 1 auto;
-      display: flex;
-      flex-direction: column;
-      overflow: visible;
-    }
+  .lh-footer .ico {
+    color: #6fcfb5;
   }
-
-  /* PRINT PRESENTATION (Multi-page repeating headers & footers) */
-  @media print {
-    @page {
-      size: A4 portrait;
-      margin: 0 !important;
-    }
-    html, body {
-      width: 210mm !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      background: #ffffff !important;
-      overflow: visible !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    .page {
-      width: 210mm !important;
-      min-height: 100% !important;
-      height: auto !important;
-      max-height: none !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      box-shadow: none !important;
-      border: none !important;
-      display: block !important;
-      overflow: visible !important;
-      page-break-after: auto !important;
-    }
-
-    /* Fixed Header repeats at the top of EVERY printed page */
-    .lh-header-print {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      width: 210mm !important;
-      height: 28mm !important;
-      box-sizing: border-box !important;
-      background: #ffffff !important;
-      z-index: 9999 !important;
-      display: flex !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-
-    /* Fixed Footer repeats at the bottom of EVERY printed page */
-    .lh-footer-print {
-      position: fixed !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      width: 210mm !important;
-      height: 18mm !important;
-      box-sizing: border-box !important;
-      background: ${BRAND_TOKENS.ink} !important;
-      color: #d9e0dc !important;
-      z-index: 9999 !important;
-      display: flex !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-
-    /* Table layout manages continuous paged flow without clipping text */
-    table.lh-print-table {
-      width: 210mm !important;
-      display: table !important;
-    }
-    table.lh-print-table > thead {
-      display: table-header-group !important;
-    }
-    table.lh-print-table > tfoot {
-      display: table-footer-group !important;
-    }
-    table.lh-print-table > tbody {
-      display: table-row-group !important;
-    }
-    table.lh-print-table > tbody > tr > td {
-      display: table-cell !important;
-    }
-
-    .lh-header-space {
-      display: block !important;
-      height: 28mm !important;
-      width: 100% !important;
-    }
-    .lh-footer-space {
-      display: block !important;
-      height: 18mm !important;
-      width: 100% !important;
-    }
-
-    .lh-body {
-      display: block !important;
-      overflow: visible !important;
-    }
-
-    /* Prevent awkward cuts inside elements */
-    h2, h3, .meta-bar, .subject, .salutation, .signoff, .sig-line, .recipient, hr {
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-    }
-    h2, h3 {
-      page-break-after: avoid !important;
-      break-after: avoid !important;
-    }
-    p, li {
-      page-break-inside: auto;
-      orphans: 2;
-      widows: 2;
-    }
+  .lh-footer-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8mm;
+  }
+  .lh-footer-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+  }
+  .lh-footer-right {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8mm;
+    text-align: right;
+  }
+  .lh-footer-right .row {
+    justify-content: flex-end;
+  }
+  .lh-footer a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .page-number-badge {
+    font-size: 8pt;
+    font-weight: 600;
+    color: #6fcfb5;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(111, 207, 181, 0.35);
+    border-radius: 4px;
+    padding: 1.2mm 3.5mm;
+    letter-spacing: 0.04em;
+    display: inline-block;
   }
 </style>
 </head>
@@ -776,103 +870,15 @@ export function renderA4LetterheadHtml(doc: ContractDocument): string {
   </defs>
 </svg>
 
-<div class="page">
-
-  <!-- HEADER (Repeats on every printed page via position: fixed in print) -->
-  <div class="lh-header-print">
-    <div class="lh-logo">
-      <div class="logo-badge">
-        <img src="${BRAND_TOKENS.logoUrl}" alt="SenayCreatives logo" onerror="this.style.display='none'">
-      </div>
-      <div class="wm">Senay<span>Creatives</span></div>
-    </div>
-    <div class="lh-contact">
-      <div class="row"><span>${BRAND_TOKENS.city}</span><svg class="ico"><use href="#i-pin"/></svg></div>
-      <div class="row"><span>${BRAND_TOKENS.phonePrimary}</span><svg class="ico"><use href="#i-phone"/></svg></div>
-      <div class="row"><span>${BRAND_TOKENS.phoneSecondary}</span><svg class="ico"><use href="#i-phone"/></svg></div>
-      <div class="row"><span>${BRAND_TOKENS.email}</span><svg class="ico"><use href="#i-mail"/></svg></div>
-    </div>
-  </div>
-
-  <!-- PAGINATED TABLE WRAPPER (Flows naturally across multiple pages) -->
-  <table class="lh-print-table">
-    <thead>
-      <tr>
-        <td>
-          <div class="lh-header-space"></div>
-        </td>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>
-          <!-- LETTER BODY -->
-          <div class="lh-body">
-            <div class="meta-bar">
-              <div class="date">${dateFormatted}</div>
-              ${doc.refNumber ? `<div class="meta-ref">Ref: ${doc.refNumber}</div>` : ""}
-            </div>
-
-            <div class="recipient">
-              <strong>${doc.recipientName || "Valued Recipient"}</strong><br>
-              ${doc.recipientOrg ? `${doc.recipientOrg}<br>` : ""}
-              ${doc.recipientAddress ? `${doc.recipientAddress}<br>` : ""}
-              ${doc.recipientEmail ? `${doc.recipientEmail}` : ""}
-            </div>
-
-            ${doc.subject ? `<div class="subject">${doc.subject}</div>` : ""}
-            ${doc.salutation ? `<div class="salutation">${doc.salutation}</div>` : ""}
-
-            ${bodyHtml}
-
-            ${!doc.bodyMarkdown.includes("PARTY A") ? `
-            <div class="signoff">
-              <p style="margin-bottom: 2mm;">Sincerely,</p>
-              <div class="signature-space">
-                ${doc.includeSignatureLine ? '<div class="sig-line"></div>' : ""}
-              </div>
-              <div class="signer-name">${doc.signerName || "Eyuel Kebede"}</div>
-              <div class="signer-title">${doc.signerTitle || "Managing Director, Senay Creatives"}</div>
-              ${doc.signerEmail || doc.signerPhone ? `
-                <div style="font-size: 8.5pt; color: ${BRAND_TOKENS.muted}; margin-top: 1.5mm;">
-                  ${[doc.signerEmail, doc.signerPhone].filter(Boolean).join(" &nbsp;·&nbsp; ")}
-                </div>
-              ` : ""}
-            </div>
-            ` : ""}
-          </div>
-        </td>
-      </tr>
-    </tbody>
-    <tfoot>
-      <tr>
-        <td>
-          <div class="lh-footer-space"></div>
-        </td>
-      </tr>
-    </tfoot>
-  </table>
-
-  <!-- FOOTER (Repeats on every printed page via position: fixed in print) -->
-  <div class="lh-footer-print">
-    <div>
-      <strong>Senay Creatives</strong>
-      <div class="row"><svg class="ico"><use href="#i-pin"/></svg><span>${BRAND_TOKENS.city}</span></div>
-      <div class="row"><svg class="ico"><use href="#i-globe"/></svg><span>${BRAND_TOKENS.website}</span></div>
-    </div>
-    <div class="right">
-      <div class="row"><span>${BRAND_TOKENS.phonePrimary} &nbsp;|&nbsp; ${BRAND_TOKENS.phoneSecondary}</span><svg class="ico"><use href="#i-phone"/></svg></div>
-      <div class="row"><span>${BRAND_TOKENS.email}</span><svg class="ico"><use href="#i-mail"/></svg></div>
-    </div>
-  </div>
-
+<div class="pages-container">
+${renderedPagesHtml}
 </div>
 
 </body>
 </html>`;
 }
 
-/** Render fully responsive, branded HTML email strictly adhering to Senay Creatives design tokens. */
+/** Render fully responsive, branded HTML email strictly adhering to Senay Creatives design tokens and contract.md. */
 export function renderEmailHtml(doc: ContractDocument, opts?: { signingUrl?: string }): string {
   const bodyHtml = formatBodyToHtml(doc.bodyMarkdown);
   const dateFormatted = doc.date || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -885,30 +891,26 @@ export function renderEmailHtml(doc: ContractDocument, opts?: { signingUrl?: str
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${doc.subject || doc.title || "Senay Creatives"}</title>
 </head>
-<body style="margin:0; padding:0; background-color:${BRAND_TOKENS.paper}; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+<body style="margin:0; padding:0; background-color:#f2f2f0;">
 
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BRAND_TOKENS.paper};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f2f2f0;">
   <tr>
-    <td align="center" style="padding:28px 12px;">
+    <td align="center" style="padding:24px 12px;">
 
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; background-color:#ffffff; border: 1px solid ${BRAND_TOKENS.line}; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06); font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; background-color:#ffffff; font-family:'Segoe UI', Helvetica, Arial, sans-serif; border: 1px solid #dcd9d0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
 
         <!-- ============ HEADER ============ -->
         <tr>
-          <td style="padding:26px 30px 18px 30px; border-bottom:4px solid ${BRAND_TOKENS.ink};">
+          <td style="padding:24px 28px 16px 28px; border-bottom:4px solid #1f6f5c;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td align="left" valign="middle" style="font-size:22px; font-weight:700; color:${BRAND_TOKENS.ink};">
-                  <a href="https://${BRAND_TOKENS.website}" style="color:${BRAND_TOKENS.ink}; text-decoration:none; display:inline-flex; align-items:center;">
-                    <span style="display:inline-block; vertical-align:middle; width:34px; height:34px; border-radius:50%; border:1px solid ${BRAND_TOKENS.line}; background-color:${BRAND_TOKENS.paper}; text-align:center; line-height:34px; margin-right:8px; overflow:hidden;">
-                      <img src="${BRAND_TOKENS.logoUrl}" alt="Senay Creatives" height="24" width="24" style="height:24px; width:24px; border:0; vertical-align:middle; display:inline-block; margin-top:5px;">
-                    </span>
-                    <span style="vertical-align:middle; letter-spacing:-0.02em; color:${BRAND_TOKENS.ink};">Senay<span>Creatives</span></span>
-                  </a>
+                <td align="left" valign="middle" style="font-size:24px; font-weight:700; color:#1c2321; font-family:'Segoe UI', Helvetica, Arial, sans-serif;">
+                  <a href="https://${BRAND_TOKENS.website}" style="color:#1c2321; text-decoration:none;"><img src="${BRAND_TOKENS.logoUrl}" alt="SenayCreatives logo" height="36" style="height:36px; width:auto; border:0; vertical-align:middle;">&nbsp;<span style="vertical-align:middle;">Senay<span style="color:#1f6f5c;">Creatives</span></span></a>
                 </td>
-                <td align="right" valign="middle" style="font-size:12px; line-height:18px; color:${BRAND_TOKENS.muted};">
-                  <a href="tel:${BRAND_TOKENS.phonePrimary.replace(/\s+/g, '')}" style="color:${BRAND_TOKENS.muted}; text-decoration:none;">${BRAND_TOKENS.phonePrimary}</a><br>
-                  <a href="mailto:${BRAND_TOKENS.email}" style="color:${BRAND_TOKENS.muted}; text-decoration:none;">${BRAND_TOKENS.email}</a>
+                <td align="right" valign="middle" style="font-size:12px; line-height:19px; color:#555555; font-family:'Segoe UI', Helvetica, Arial, sans-serif;">
+                  <span style="color:#1f6f5c;">&#9742;</span>&nbsp;<a href="tel:${BRAND_TOKENS.phonePrimary.replace(/\s+/g, '')}" style="color:#555555; text-decoration:none;">${BRAND_TOKENS.phonePrimary}</a><br>
+                  <span style="color:#1f6f5c;">&#9742;</span>&nbsp;<a href="tel:${BRAND_TOKENS.phoneSecondary.replace(/\s+/g, '')}" style="color:#555555; text-decoration:none;">${BRAND_TOKENS.phoneSecondary}</a><br>
+                  <span style="color:#1f6f5c;">&#9993;</span>&nbsp;<a href="mailto:${BRAND_TOKENS.email}" style="color:#555555; text-decoration:none;">${BRAND_TOKENS.email}</a>
                 </td>
               </tr>
             </table>
@@ -917,45 +919,45 @@ export function renderEmailHtml(doc: ContractDocument, opts?: { signingUrl?: str
 
         <!-- ============ BODY ============ -->
         <tr>
-          <td style="padding:32px 30px; font-size:15px; line-height:24px; color:${BRAND_TOKENS.ink};">
+          <td style="padding:28px; font-size:15px; line-height:24px; color:#1c2321; font-family:'Segoe UI', Helvetica, Arial, sans-serif;">
             
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px; border-bottom:1px dashed ${BRAND_TOKENS.line}; padding-bottom:12px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px; border-bottom:1px dashed #dcd9d0; padding-bottom:12px;">
               <tr>
-                <td align="left" style="font-size:13px; font-weight:600; color:${BRAND_TOKENS.inkSoft};">
+                <td align="left" style="font-size:13px; font-weight:600; color:#333333;">
                   ${dateFormatted}
                 </td>
-                ${doc.refNumber ? `<td align="right" style="font-size:11px; font-family:monospace; color:${BRAND_TOKENS.muted}; text-transform:uppercase;">Ref: ${doc.refNumber}</td>` : ""}
+                ${doc.refNumber ? `<td align="right" style="font-size:11px; font-family:monospace; color:#666666; text-transform:uppercase;">Ref: ${doc.refNumber}</td>` : ""}
               </tr>
             </table>
 
-            ${doc.subject ? `<h2 style="margin:0 0 16px 0; font-size:18px; font-weight:700; color:${BRAND_TOKENS.ink}; line-height:1.4;">${doc.subject}</h2>` : ""}
+            ${doc.subject ? `<h2 style="margin:0 0 16px 0; font-size:18px; font-weight:700; color:#1c2321; line-height:1.4;">${doc.subject}</h2>` : ""}
             ${doc.salutation ? `<p style="margin:0 0 14px 0; font-weight:600; font-size:15px;">${doc.salutation}</p>` : ""}
 
-            <div style="color:${BRAND_TOKENS.inkSoft};">
+            <div style="color:#333333;">
               ${bodyHtml}
             </div>
 
             ${
               signingUrl && !doc.signedAt
                 ? `
-            <div style="margin-top:24px; padding:20px; background-color:${BRAND_TOKENS.paper}; border:1px solid ${BRAND_TOKENS.line}; border-radius:12px; text-align:center;">
-              <p style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:${BRAND_TOKENS.ink};">
+            <div style="margin-top:24px; padding:20px; background-color:#f4f3ee; border:1px solid #dcd9d0; border-radius:12px; text-align:center;">
+              <p style="margin:0 0 10px 0; font-size:14px; font-weight:700; color:#1c2321;">
                 Electronic Signature Requested
               </p>
-              <p style="margin:0 0 16px 0; font-size:13px; color:${BRAND_TOKENS.muted};">
-                Please review this document and add your signature securely using your touchscreen, stylus, or mouse.
+              <p style="margin:0 0 16px 0; font-size:13px; color:#555555;">
+                Please review this document and sign securely using your touchscreen, stylus, or trackpad.
               </p>
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                 <tr>
-                  <td style="background-color:${BRAND_TOKENS.ink}; border-radius:10px; padding:0;">
+                  <td style="background-color:#1f6f5c; border-radius:8px; padding:0;">
                     <a href="${signingUrl}" style="display:inline-block; padding:12px 28px; font-size:14px; font-weight:700; color:#ffffff; text-decoration:none; letter-spacing:-0.01em;">
-                      ✍&nbsp; Sign Here
+                      ✍&nbsp; Review & Sign Online
                     </a>
                   </td>
                 </tr>
               </table>
-              <p style="margin:12px 0 0 0; font-size:11px; color:${BRAND_TOKENS.muted};">
-                Or copy and paste: <a href="${signingUrl}" style="color:${BRAND_TOKENS.ink}; word-break:break-all;">${signingUrl}</a>
+              <p style="margin:12px 0 0 0; font-size:11px; color:#666666;">
+                Direct link: <a href="${signingUrl}" style="color:#1f6f5c; word-break:break-all;">${signingUrl}</a>
               </p>
             </div>
             `
@@ -965,12 +967,12 @@ export function renderEmailHtml(doc: ContractDocument, opts?: { signingUrl?: str
             ${
               doc.signedAt && doc.signatureDataUrl
                 ? `
-            <div style="margin-top:24px; padding:16px 20px; background-color:#f8faf9; border:1px solid #d1fae5; border-radius:12px;">
-              <p style="margin:0 0 8px 0; font-size:12px; font-weight:700; color:#065f46; text-transform:uppercase; letter-spacing:0.05em;">
+            <div style="margin-top:24px; padding:16px 20px; background-color:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
+              <p style="margin:0 0 8px 0; font-size:12px; font-weight:700; color:#15803d; text-transform:uppercase; letter-spacing:0.05em;">
                 ✓ Electronically Signed by ${doc.recipientName}
               </p>
               <img src="${doc.signatureDataUrl}" alt="Signature of ${doc.recipientName}" style="max-height:50px; display:block; margin:6px 0;" />
-              <p style="margin:4px 0 0 0; font-size:11px; color:#047857;">
+              <p style="margin:4px 0 0 0; font-size:11px; color:#166534;">
                 Timestamp: ${new Date(doc.signedAt).toLocaleString("en-GB")}
               </p>
             </div>
@@ -979,12 +981,12 @@ export function renderEmailHtml(doc: ContractDocument, opts?: { signingUrl?: str
             }
 
             ${!doc.bodyMarkdown.includes("PARTY A") ? `
-            <div style="margin-top:28px; padding-top:16px; border-top:1px solid ${BRAND_TOKENS.line};">
-              <p style="margin:0 0 4px 0; font-size:14px; color:${BRAND_TOKENS.muted};">Best regards,</p>
-              <p style="margin:0; font-weight:700; font-size:15px; color:${BRAND_TOKENS.ink};">${doc.signerName || "Eyuel Kebede"}</p>
-              <p style="margin:0; font-size:13px; color:${BRAND_TOKENS.muted};">${doc.signerTitle || "Managing Director, Senay Creatives"}</p>
+            <div style="margin-top:28px; padding-top:16px; border-top:1px solid #dcd9d0;">
+              <p style="margin:0 0 4px 0; font-size:14px; color:#555555;">Best regards,</p>
+              <p style="margin:0; font-weight:700; font-size:15px; color:#1c2321;">${doc.signerName || "Eyuel Kebede"}</p>
+              <p style="margin:0; font-size:13px; color:#555555;">${doc.signerTitle || "Managing Director, Senay Creatives"}</p>
               ${doc.signerEmail || doc.signerPhone ? `
-                <p style="margin:4px 0 0 0; font-size:12px; color:${BRAND_TOKENS.muted};">
+                <p style="margin:4px 0 0 0; font-size:12px; color:#666666;">
                   ${[doc.signerEmail, doc.signerPhone].filter(Boolean).join(" &nbsp;·&nbsp; ")}
                 </p>
               ` : ""}
@@ -995,21 +997,22 @@ export function renderEmailHtml(doc: ContractDocument, opts?: { signingUrl?: str
 
         <!-- ============ FOOTER ============ -->
         <tr>
-          <td style="background-color:${BRAND_TOKENS.ink}; padding:24px 30px; font-size:13px; line-height:22px; color:#d9e0dc;">
-            <p style="margin:0 0 8px 0; font-size:15px; font-weight:700; color:#ffffff; letter-spacing:-0.01em;">Senay Creatives</p>
-            <p style="margin:0; color:#b0b9b4;">&#9906;&nbsp; ${BRAND_TOKENS.city}</p>
+          <td style="background-color:#16201d; padding:22px 28px; font-size:13px; line-height:23px; color:#d9e0dc; font-family:'Segoe UI', Helvetica, Arial, sans-serif;">
+            <p style="margin:0 0 6px 0; font-size:15px; font-weight:700; color:#ffffff;">Senay Creatives</p>
+            <p style="margin:0;"><span style="color:#6fcfb5;">&#9906;</span>&nbsp; Addis Ababa, Ethiopia</p>
             <p style="margin:0;">
-              &#9742;&nbsp; <a href="tel:${BRAND_TOKENS.phonePrimary.replace(/\s+/g, '')}" style="color:#d9e0dc; text-decoration:none;">${BRAND_TOKENS.phonePrimary}</a>
+              <span style="color:#6fcfb5;">&#9742;</span>&nbsp;
+              <a href="tel:${BRAND_TOKENS.phonePrimary.replace(/\s+/g, '')}" style="color:#d9e0dc; text-decoration:none;">${BRAND_TOKENS.phonePrimary}</a>
               &nbsp;|&nbsp;
               <a href="tel:${BRAND_TOKENS.phoneSecondary.replace(/\s+/g, '')}" style="color:#d9e0dc; text-decoration:none;">${BRAND_TOKENS.phoneSecondary}</a>
             </p>
-            <p style="margin:0;">&#9993;&nbsp; <a href="mailto:${BRAND_TOKENS.email}" style="color:#d9e0dc; text-decoration:none;">${BRAND_TOKENS.email}</a></p>
-            <p style="margin:4px 0 0 0;">&#127760;&nbsp; <a href="https://${BRAND_TOKENS.website}" style="color:#ffffff; text-decoration:underline; font-weight:600;">${BRAND_TOKENS.website}</a></p>
+            <p style="margin:0;"><span style="color:#6fcfb5;">&#9993;</span>&nbsp; <a href="mailto:${BRAND_TOKENS.email}" style="color:#d9e0dc; text-decoration:none;">${BRAND_TOKENS.email}</a></p>
+            <p style="margin:0;"><span style="color:#6fcfb5;">&#127760;</span>&nbsp; <a href="https://${BRAND_TOKENS.website}" style="color:#6fcfb5; text-decoration:none;">${BRAND_TOKENS.website}</a></p>
           </td>
         </tr>
         <tr>
-          <td align="center" style="background-color:${BRAND_TOKENS.ink}; padding:0 30px 20px 30px; font-size:11px; color:#8c9a94;">
-            &copy; 2026 Senay Creatives. All rights reserved. Confidential and proprietary.
+          <td align="center" style="background-color:#16201d; padding:0 28px 18px 28px; font-size:11px; color:#8c9a94; font-family:'Segoe UI', Helvetica, Arial, sans-serif;">
+            &copy; ${new Date().getFullYear()} Senay Creatives. All rights reserved.
           </td>
         </tr>
 

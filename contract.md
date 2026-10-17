@@ -192,7 +192,7 @@ for Emails
         </tr>
         <tr>
           <td align="center" style="background-color:#16201d; padding:0 28px 18px 28px; font-size:11px; color:#8c9a94; font-family:Segoe UI, Helvetica, Arial, sans-serif;">
-            &copy; 2026 Senay Creatives. All rights reserved.
+            &copy; 2026  Senay Creatives. All rights reserved.
           </td>
         </tr>
 
